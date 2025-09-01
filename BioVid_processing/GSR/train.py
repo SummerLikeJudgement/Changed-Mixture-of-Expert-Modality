@@ -1,6 +1,6 @@
 from torch import optim, nn
 import torch
-from ..utils.utils import load_data, generate_kfolds_index
+from BioVid_processing.utils.utils import load_data, generate_kfolds_index
 from sklearn.metrics import accuracy_score
 import numpy as np
 from .model import CNN1D
