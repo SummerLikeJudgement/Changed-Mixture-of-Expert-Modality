@@ -1,7 +1,9 @@
-from torch import optim
-from ..utils import load_data, generate_kfolds_index
+from torch import optim, nn
+import torch
+from BioVid_processing.utils.utils import load_data, generate_kfolds_index
 from sklearn.metrics import accuracy_score
-from model import *
+import numpy as np
+from .model import CNN1D
 
 def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch, device, fold_idx):
     print(f"===开始训练第{fold_idx}折===")
@@ -68,8 +70,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         'valid_accs': valid_accs
     }
 
-def main():
-    data_dir = "./processed/gsr"
+def main(data_dir = ""):
     k_folds = 5
     label_converter = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4}
     batch_size = 32
@@ -102,8 +103,5 @@ def main():
     std_acc = np.std(folds_acc)
     print(f"平均准确率{mean_acc:.4f}+-{std_acc:.4f}")
     print(f"最佳准确率{max(folds_acc):.4f}")
-
-if __name__ == '__main__':
-    main()
 
 

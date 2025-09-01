@@ -45,20 +45,17 @@ def generate_kfolds_index(npz_dir, k_folds) -> dict[int: list[str]]:
     """
     Generate k-folds dataset index and store into a dictionary. The length of dictionary is equal to the number of
     folds. Each element contains training set and testing set.
-    :param npz_dir: processed files directory
+    :param npz_dir: processed files absolute directory
     :param k_folds: the number of folds
     :return: a dict contains k-folds dataset paths, e.g. dict{0: [list[str(train_dir)], list[str(test_dir)]]..., k:[...]}
     """
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    abs_npz_dir = os.path.abspath(os.path.join(base_dir, npz_dir))
-
-    if os.path.exists(abs_npz_dir):
+    if os.path.exists(npz_dir):
         print('================= Creating KFolds Index =================')
     else:
         print('================= Data directory does not exist =================')
     # 获取npz文件并转化为numpy数组
-    npz_files = glob.glob(os.path.join(abs_npz_dir, '*.npz'))
-    print(f"npz_dir:{abs_npz_dir}")
+    npz_files = glob.glob(os.path.join(npz_dir, '*.npz'))
+    print(f"npz_dir:{npz_dir}")
     npz_files = np.asarray(npz_files)
     kfolds_names = np.array_split(npz_files, k_folds) # 均分数组
     # print(kfolds_names)
