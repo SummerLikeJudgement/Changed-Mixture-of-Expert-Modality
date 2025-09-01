@@ -1,0 +1,216 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from ...subNets.transformers_encoder.transformer import TransformerEncoder
+from ...singleTask.model.router import router
+
+class EMOE(nn.Module):
+    def __init__(self, args):
+        super(EMOE, self).__init__()
+        dst_feature_dims, nheads = args.dst_feature_dim_nheads
+        if args.dataset_name == 'biovid':
+            # 各模态的序列长度
+            if args.need_data_aligned:
+                self.len_ecg, self.len_gsr, self.len_v = 50, 50, 50 # 心电图、皮肤电反应、视觉
+            else:
+                self.len_ecg, self.len_gsr, self.len_v = 50, 500, 300
+        self.aligned = args.need_data_aligned
+        # 原始特征维度
+        self.orig_d_ecg, self.orig_d_gsr, self.orig_d_v = args.feature_dims
+        # 模态目标特征维度相同
+        self.d_ecg = self.d_gsr = self.d_v = dst_feature_dims
+        # transformer多头注意力的头数
+        self.num_heads = nheads
+        # transformer编码器的层数
+        self.layers = args.nlevels
+        # 注意力机制的丢弃率
+        self.attn_dropout_v = args.attn_dropout_v
+        self.attn_dropout_ecg = args.attn_dropout_ecg
+        self.attn_dropout_gsr = args.attn_dropout_gsr
+        # 各种丢弃率
+        self.relu_dropout = args.relu_dropout
+        self.embed_dropout = args.embed_dropout
+        self.res_dropout = args.res_dropout
+        self.output_dropout = args.output_dropout
+        # 注意力机制是否使用掩码
+        self.attn_mask = args.attn_mask
+        # 融合方法
+        self.fusion_method = args.fusion_method
+        output_dim = args.output_dim
+        self.args = args
+
+        # 为各模态创建1D卷积投影层，将原始特征维度映射到目标维度
+        self.proj_ecg = nn.Conv1d(self.orig_d_ecg, self.d_ecg, kernel_size=args.conv1d_kernel_size_ecg, padding=0, bias=False)
+        self.proj_gsr = nn.Conv1d(self.orig_d_gsr, self.d_gsr, kernel_size=args.conv1d_kernel_size_gsr, padding=0, bias=False)
+        self.proj_v = nn.Conv1d(self.orig_d_v, self.d_v, kernel_size=args.conv1d_kernel_size_v, padding=0, bias=False)
+
+        # 创建1x1卷积编码器，为每一个时间步的特征进行变换
+        self.encoder_c = nn.Conv1d(self.d_ecg, self.d_ecg, kernel_size=1, padding=0, bias=False)
+        self.encoder_ecg = nn.Conv1d(self.d_ecg, self.d_ecg, kernel_size=1, padding=0, bias=False)
+        self.encoder_v = nn.Conv1d(self.d_v, self.d_v, kernel_size=1, padding=0, bias=False)
+        self.encoder_gsr = nn.Conv1d(self.d_gsr, self.d_gsr, kernel_size=1, padding=0, bias=False)
+
+        # 为单模态创建自注意力网络。
+        self.self_attentions_ecg = self.get_network(self_type='ecg')
+        self.self_attentions_v = self.get_network(self_type='v')
+        self.self_attentions_gsr = self.get_network(self_type='gsr')
+
+        #单模态预测头（两个线性投影层+一个最终输出层）
+        self.proj1_ecg = nn.Linear(self.d_ecg, self.d_ecg)
+        self.proj2_ecg = nn.Linear(self.d_ecg, self.d_ecg)
+        self.out_layer_ecg = nn.Linear(self.d_ecg, output_dim)
+
+        self.proj1_v = nn.Linear(self.d_ecg, self.d_ecg)
+        self.proj2_v = nn.Linear(self.d_ecg, self.d_ecg)
+        self.out_layer_v = nn.Linear(self.d_ecg, output_dim)
+
+        self.proj1_gsr = nn.Linear(self.d_ecg, self.d_ecg)
+        self.proj2_gsr = nn.Linear(self.d_ecg, self.d_ecg)
+        self.out_layer_gsr = nn.Linear(self.d_ecg, output_dim)
+
+        # 融合特征预测头
+        if self.fusion_method == "sum": 
+            self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
+            self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
+            self.out_layer_c = nn.Linear(self.d_ecg, output_dim)
+        elif self.fusion_method == "concat":
+            self.proj1_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
+            self.proj2_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
+            self.out_layer_c = nn.Linear(self.d_ecg*3, output_dim)
+
+        # 路由网络，计算权重W
+        self.Router = router(self.orig_d_ecg * self.len_ecg + self.orig_d_gsr * self.len_gsr + self.orig_d_v * self.len_v, 3, self.args.temperature)
+        # 将ecg、gsr序列长度对齐到视觉序列长度
+        self.transfer_ecg_ali = nn.Linear(self.len_ecg, self.len_v)
+        self.transfer_gsr_ali = nn.Linear(self.len_gsr, self.len_v)
+
+
+    def get_network(self, self_type='ecg', layers=-1):
+        if self_type == 'ecg':
+            embed_dim, attn_dropout = self.d_ecg, self.attn_dropout_ecg
+        elif self_type == 'gsr':
+            embed_dim, attn_dropout = self.d_gsr, self.attn_dropout_gsr
+        elif self_type == 'v':
+            embed_dim, attn_dropout = self.d_v, self.attn_dropout_v
+        else:
+            raise ValueError("Unknown network type")
+
+        return TransformerEncoder(embed_dim=embed_dim,
+                                  num_heads=self.num_heads,
+                                  layers=max(self.layers, layers),
+                                  attn_dropout=attn_dropout,
+                                  relu_dropout=self.relu_dropout,
+                                  res_dropout=self.res_dropout,
+                                  embed_dropout=self.embed_dropout,
+                                  attn_mask=self.attn_mask)
+
+    def get_net(self, name):
+        return getattr(self, name)
+
+    def forward(self, ecg, gsr, video):
+
+        # 将序列长度和特征维度交换
+        x_ecg = ecg.transpose(1, 2)
+        x_gsr = gsr.transpose(1, 2)
+        x_v = video.transpose(1, 2)
+
+        if not self.aligned:
+            # 未对齐，使用线性层对齐序列长度
+            ecg_ = self.transfer_ecg_ali(ecg.permute(0, 2, 1)).permute(0, 2, 1)
+            gsr_ = self.transfer_gsr_ali(gsr.permute(0, 2, 1)).permute(0, 2, 1)
+            m_i = torch.cat((ecg_, gsr_, video), dim=2)
+        else:
+            m_i = torch.cat((ecg, gsr, video), dim=2)
+        # 路由网络获取权重
+        m_w = self.Router(m_i)
+
+        # 如果原始维度与目标维度不同，进行投影
+        proj_x_ecg = x_ecg if self.orig_d_ecg == self.d_ecg else self.proj_ecg(x_ecg)
+        proj_x_gsr = x_gsr if self.orig_d_gsr == self.d_gsr else self.proj_gsr(x_gsr)
+        proj_x_v = x_v if self.orig_d_v == self.d_v else self.proj_v(x_v)
+
+        # 使用encoder（1*1卷积）对投影后特征编码，得到低级特征
+        c_ecg = self.encoder_c(proj_x_ecg)
+        c_v = self.encoder_c(proj_x_v)
+        c_gsr = self.encoder_c(proj_x_gsr)
+
+        c_ecg = c_ecg.permute(2, 0, 1)
+        c_v = c_v.permute(2, 0, 1)
+        c_gsr = c_gsr.permute(2, 0, 1)
+
+        # 对每个模态应用transformer，得到高级特征
+        c_ecg_att = self.self_attentions_ecg(c_ecg)
+        if type(c_ecg_att) == tuple:
+            c_ecg_att = c_ecg_att[0]
+        c_ecg_att = c_ecg_att[-1]
+
+        c_v_att = self.self_attentions_v(c_v)
+        if type(c_v_att) == tuple:
+            c_v_att = c_v_att[0]
+        c_v_att = c_v_att[-1]
+
+        c_gsr_att = self.self_attentions_gsr(c_gsr)
+        if type(c_gsr_att) == tuple:
+            c_gsr_att = c_gsr_att[0]
+        c_gsr_att = c_gsr_att[-1]
+
+        # ecg模态预测结果
+        ecg_proj = self.proj2_ecg(
+            F.dropout(
+                F.relu(
+                    self.proj1_ecg(c_ecg_att), inplace=True), p=self.output_dropout, training=self.training))
+        ecg_proj += c_ecg_att
+        logits_ecg = self.out_layer_ecg(ecg_proj)
+        # 视觉模态预测结果
+        v_proj = self.proj2_v(
+            F.dropout(
+                F.relu(
+                    self.proj1_v(c_v_att), inplace=True), p=self.output_dropout, training=self.training))
+        v_proj += c_v_att
+        logits_v = self.out_layer_v(v_proj)
+        # 音频模态预测结果
+        gsr_proj = self.proj2_gsr(
+            F.dropout(
+                F.relu(
+                    self.proj1_gsr(c_gsr_att), inplace=True), p=self.output_dropout, training=self.training))
+        gsr_proj += c_gsr_att
+        logits_gsr = self.out_layer_gsr(gsr_proj)
+
+        # 根据融合方法融合特征
+        if self.fusion_method == "sum": 
+            for i in range(m_w.shape[0]):
+                c_f = c_ecg_att[i] * m_w[i][0] + c_gsr_att[i] * m_w[i][1], c_v_att[i] * m_w[i][2]
+                if i == 0:
+                    c_fusion = c_f.unsqueeze(0)
+                else:
+                    c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
+        elif self.fusion_method == "concat":        
+            for i in range(m_w.shape[0]):
+                c_f = torch.cat([c_ecg_att[i] * m_w[i][0], c_gsr_att[i] * m_w[i][1], c_v_att[i] * m_w[i][2]], dim=0) * 3
+                if i == 0:
+                    c_fusion = c_f.unsqueeze(0)
+                else:
+                    c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
+
+        # 融合特征预测头
+        c_proj = self.proj2_c(
+            F.dropout(
+                F.relu(
+                    self.proj1_c(c_fusion), inplace=True), p=self.output_dropout, training=self.training))
+        c_proj += c_fusion
+        logits_c = self.out_layer_c(c_proj)
+
+
+        res = {
+            'logits_c': logits_c,
+            'logits_ecg': logits_ecg,
+            'logits_v': logits_v,
+            'logits_gsr': logits_gsr,
+            'channel_weight': m_w,
+            'c_proj': c_proj,
+            'ecg_proj': ecg_proj,
+            'v_proj': v_proj,
+            'gsr_proj': gsr_proj,
+            'c_fea': c_fusion,
+        }
+        return res

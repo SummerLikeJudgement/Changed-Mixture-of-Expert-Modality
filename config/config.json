@@ -1,0 +1,50 @@
+{
+  "datasetCommonParams": {
+    "dataset_root_dir": "./dataset",
+    "biovid": {
+      "unaligned": {
+        "featurePath": "BIOVID/unaligned.pkl",
+        "feature_dims": [768, 5, 20],
+        "train_samples": 86,
+        "num_classes": 5,
+        "KeyEval": "Loss"
+      }
+    }
+  },
+  "emoe": {
+    "commonParams": {
+      "need_data_aligned": false,
+      "need_model_aligned": true,
+      "train_mode": "classification",
+      "early_stop": 10,
+      "attn_mask": true,
+      "update_epochs": 10,
+      "fusion_method": "sum",
+      "temperature": 0.1,
+      "is_distill": true
+    },
+    "datasetParams": {
+      "biovid": {
+        "attn_dropout_gsr": 0.1,
+        "attn_dropout_eda": 0.2,
+        "attn_dropout_v": 0.0,
+        "relu_dropout": 0.0,
+        "embed_dropout": 0.2,
+        "res_dropout": 0.0,
+        "dst_feature_dim_nheads": [256, 8],
+        "batch_size": 16,
+        "learning_rate": 0.0001,
+        "nlevels": 4,
+        "conv1d_kernel_size_l": 5,
+        "conv1d_kernel_size_a": 5,
+        "conv1d_kernel_size_v": 5,
+        "text_dropout": 0.5,
+        "attn_dropout": 0.3,
+        "output_dropout": 0.5,
+        "grad_clip": 0.6,
+        "patience": 5,
+        "weight_decay": 0.005
+      }
+    }
+  }
+}
