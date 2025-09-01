@@ -69,7 +69,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
     }
 
 def main():
-    data_dir = "./processed/gsr"
+    data_dir = "./processed/ecg"
     k_folds = 5
     label_converter = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4}
     batch_size = 32
