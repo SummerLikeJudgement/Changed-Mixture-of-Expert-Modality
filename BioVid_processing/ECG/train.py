@@ -95,7 +95,7 @@ def main(data_dir = "", num_epoch = 50):
         # 初始化模型
         model = CNN1D(num_classes=len(label_converter)).to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=1e-4, momentum=0.9, weight_decay=1e-4)
+        optimizer = optim.Adam(model.parameters(), lr=1e-4)
         # 训练模型
         result = train_model(model, train_loader, valid_loader, criterion, optimizer, num_epoch=num_epoch, device=device, fold_idx=fold_idx)
         # 记录结果

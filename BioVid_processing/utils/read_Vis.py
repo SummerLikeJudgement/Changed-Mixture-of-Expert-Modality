@@ -10,6 +10,7 @@ import sys
 sys.path.append(os.getcwd())
 
 
+# 裁切人脸
 def crop_face(root: str, ext: str):
     from util.face_sdk.face_crop import process_videos
     source_dir = os.path.join(root, "downloaded")
