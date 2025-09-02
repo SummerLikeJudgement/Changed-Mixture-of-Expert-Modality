@@ -81,7 +81,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
 def main(data_dir = "", num_epoch = 50):
     k_folds = 5
     label_converter = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4}
-    batch_size = 32
+    batch_size = 1024
     folds_acc = []
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -97,7 +97,7 @@ def main(data_dir = "", num_epoch = 50):
         # 初始化模型
         model = CNN1D(num_classes=len(label_converter)).to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=1e-3)
+        optimizer = optim.Adam(model.parameters(), lr=1e-4)
         # 训练模型
         result = train_model(model, train_loader, valid_loader, criterion, optimizer, num_epoch=num_epoch, device=device, fold_idx=fold_idx)
         # 记录结果

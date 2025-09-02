@@ -65,8 +65,8 @@ class MMDataset(Dataset):
             else:
                 self.gsr_lengths = data[self.mode]['gsr_lengths']
         # 处理无穷大值
-        self.ecg[self.audio == -np.inf] = 0
-        self.gsr[self.audio == -np.inf] = 0
+        self.ecg[self.ecg == -np.inf] = 0
+        self.gsr[self.gsr == -np.inf] = 0
         # 归一化
         if 'need_normalized' in self.args and self.args['need_normalized']:
             self.__normalize()
