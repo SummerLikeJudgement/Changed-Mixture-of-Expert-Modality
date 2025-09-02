@@ -1,6 +1,6 @@
 from torch import optim, nn
 import torch, os
-from utils.utils import load_data, generate_kfolds_index
+from utils.data_util import load_data, generate_kfolds_index
 from sklearn.metrics import accuracy_score
 import numpy as np
 from ECG.model import CNN1D
@@ -95,7 +95,7 @@ def main(data_dir = "", num_epoch = 50):
         # 初始化模型
         model = CNN1D(num_classes=len(label_converter)).to(device)
         criterion = nn.CrossEntropyLoss()
-        optimizer = optim.Adam(model.parameters(), lr=1e-4)
+        optimizer = optim.Adam(model.parameters(), lr=1e-3)
         # 训练模型
         result = train_model(model, train_loader, valid_loader, criterion, optimizer, num_epoch=num_epoch, device=device, fold_idx=fold_idx)
         # 记录结果
