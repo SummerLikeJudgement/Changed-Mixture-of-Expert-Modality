@@ -31,7 +31,9 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
 
         train_loss /= len(train_loader)
         pred, true = torch.cat(train_pred), torch.cat(train_true)
-        train_acc = accuracy_score(train_true, train_pred)
+        pred = pred.cpu().detach().numpy()
+        true = true.cpu().detach().numpy()
+        train_acc = accuracy_score(true, pred)
         # 验证
         model.eval()
         val_loss = 0.0
@@ -47,6 +49,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
                 valid_true.append(target.cpu())
         val_loss /= len(val_loader)
         valid_pred, valid_true = torch.cat(valid_pred), torch.cat(valid_true)
+        valid_pred = valid_pred.cpu().detach().numpy()
+        valid_true = valid_true.cpu().detach().numpy()
         valid_acc = accuracy_score(valid_true, valid_pred)
         # 记录指标
         train_losses.append(train_loss)
