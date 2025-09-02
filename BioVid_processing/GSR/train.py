@@ -1,3 +1,5 @@
+import os
+
 from torch import optim, nn
 import torch
 from utils.utils import load_data, generate_kfolds_index
@@ -60,7 +62,9 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         # 保存最佳模型
         if valid_acc > best_acc:
             best_acc = valid_acc
-            torch.save(model.state_dict(), f"./pt/best_of_fold{fold_idx}.pth")
+            model_save_dir = f"./pt/best_of_fold{fold_idx}.pth"
+            os.makedirs(os.path.dirname(model_save_dir), exist_ok=True)
+            torch.save(model.state_dict(), model_save_dir)
 
         if (epoch + 1)% 10 == 0:
             print(f"Epoch {epoch + 1}/{num_epoch}"
@@ -74,7 +78,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         'valid_accs': valid_accs
     }
 
-def main(data_dir = ""):
+def main(data_dir = "", num_epoch = 50):
     k_folds = 5
     label_converter = {'0': 0, '1': 1, '2': 2, '3': 3, '4': 4}
     batch_size = 32
@@ -95,7 +99,7 @@ def main(data_dir = ""):
         criterion = nn.CrossEntropyLoss()
         optimizer = optim.SGD(model.parameters(), lr=1e-4, momentum=0.9, weight_decay=1e-4)
         # 训练模型
-        result = train_model(model, train_loader, valid_loader, criterion, optimizer, num_epoch=50, device=device, fold_idx=fold_idx)
+        result = train_model(model, train_loader, valid_loader, criterion, optimizer, num_epoch=num_epoch, device=device, fold_idx=fold_idx)
         # 记录结果
         folds_acc.append(result['best_acc'])
 

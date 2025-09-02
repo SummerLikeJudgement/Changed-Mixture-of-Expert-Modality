@@ -14,10 +14,10 @@ def model_run(model_name = "", mode = ""):
     if model_name == 'ecg' and mode == 'train':
         npz_dir = npz_dirs['ecg']
         abs_npz_dir = os.path.abspath(os.path.join(base_dir, npz_dir))
-        ecg_train(data_dir = abs_npz_dir)
+        ecg_train(data_dir = abs_npz_dir, num_epoch=50)
     elif model_name == 'gsr' and mode == 'train':
         npz_dir = npz_dirs['gsr']
         abs_npz_dir = os.path.abspath(os.path.join(base_dir, npz_dir))
-        gsr_train(data_dir = abs_npz_dir)
+        gsr_train(data_dir = abs_npz_dir, num_epoch=50)
     else:
         raise ValueError('Model name must be ecg or gsr')
