@@ -1,9 +1,9 @@
 from torch import optim, nn
 import torch
-from ..utils.utils import load_data, generate_kfolds_index
+from utils.utils import load_data, generate_kfolds_index
 from sklearn.metrics import accuracy_score
 import numpy as np
-from .model import CNN1D
+from ECG.model import CNN1D
 
 def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch, device, fold_idx):
     print(f"===开始训练第{fold_idx}折===")

@@ -1,7 +1,7 @@
 import os
 
-from .ECG.train import main as ecg_train
-from .GSR.train import main as gsr_train
+from ECG.train import main as ecg_train
+from GSR.train import main as gsr_train
 
 npz_dirs = {
     "ecg":"./processed/ecg",
