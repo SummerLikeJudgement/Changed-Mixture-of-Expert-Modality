@@ -89,7 +89,7 @@ def main(data_dir = "", num_epoch = 50):
         print(f"==={fold_idx+1}/{k_folds}折训练===")
         # 加载数据
         train_files, valid_files = kfolds_index[fold_idx]
-        train_loader , valid_loader, dist = load_data(train_files, valid_files, label_converter, batch_size, num_workers=4)
+        train_loader , valid_loader, dist = load_data(train_files, valid_files, label_converter, batch_size, num_workers=1)
         print(f"训练集{len(train_loader.dataset)}"
               f"验证集{len(valid_loader.dataset)}")
         # 初始化模型
