@@ -11,9 +11,9 @@ class EMOE(nn.Module):
         if args.dataset_name == 'biovid':
             # 各模态的序列长度
             if args.need_data_aligned:
-                self.len_ecg, self.len_gsr, self.len_v = 50, 50, 50 # 心电图、皮肤电反应、视觉
+                self.len_ecg, self.len_gsr, self.len_v = 75, 75, 75
             else:
-                self.len_ecg, self.len_gsr, self.len_v = 50, 500, 300
+                self.len_ecg, self.len_gsr, self.len_v = 10, 9, 75
         self.aligned = args.need_data_aligned
         # 原始特征维度
         self.orig_d_ecg, self.orig_d_gsr, self.orig_d_v = args.feature_dims
