@@ -54,7 +54,7 @@ class MMDataset(Dataset):
 
         logger.info(f"{self.mode} samples: {self.labels['M'].shape}")
 
-        # 非对齐数据
+        # 非对齐数据记录实际seq_len
         if not self.args['need_data_aligned']:
             if self.args['feature_ECG'] != "":
                 self.ecg_lengths = list(data_ECG[self.mode]['ecg_lengths'])
@@ -64,6 +64,10 @@ class MMDataset(Dataset):
                 self.gsr_lengths = list(data_GSR[self.mode]['gsr_lengths'])
             else:
                 self.gsr_lengths = data[self.mode]['gsr_lengths']
+            if self.args['feature_V'] != "":
+                self.vision_lengths = list(data_V[self.mode]['vision_lengths'])
+            else:
+                self.vision_lengths = data[self.mode]['vision_lengths']
         # 处理无穷大值
         self.ecg[self.ecg == -np.inf] = 0
         self.gsr[self.gsr == -np.inf] = 0
