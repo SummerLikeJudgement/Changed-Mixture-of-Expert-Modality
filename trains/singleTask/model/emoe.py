@@ -179,7 +179,7 @@ class EMOE(nn.Module):
         # 根据融合方法融合特征
         if self.fusion_method == "sum": 
             for i in range(m_w.shape[0]):
-                c_f = c_ecg_att[i] * m_w[i][0] + c_gsr_att[i] * m_w[i][1], c_v_att[i] * m_w[i][2]
+                c_f = c_ecg_att[i] * m_w[i][0] + c_gsr_att[i] * m_w[i][1] + c_v_att[i] * m_w[i][2]
                 if i == 0:
                     c_fusion = c_f.unsqueeze(0)
                 else:
