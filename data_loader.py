@@ -138,7 +138,9 @@ class MMDataset(Dataset):
             'vision': self.vision[index],
             'index': index,
             'id': self.ids[index],
-            'labels': {k: torch.Tensor(v[index].reshape(-1)) for k, v in self.labels.items()}
+            # 分类任务label整数；回归任务label浮点
+            'labels': {k: torch.Tensor(v[index].reshape(-1), dtype=torch.long) for k, v in self.labels.items()}
+                if self.args['train_mode'] == "classification" else {k: torch.Tensor(v[index].reshape(-1)) for k, v in self.labels.items()},
         }
         if not self.args['need_data_aligned']:
             sample['ecg_lengths'] = self.ecg_lengths[index]
