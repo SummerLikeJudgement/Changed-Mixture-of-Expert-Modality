@@ -45,7 +45,7 @@ class MMDataset(Dataset):
         # 标签处理
         if self.args['train_mode'] == "classification":
             self.labels = {
-                'M': np.array(data[self.mode]['classification_labels']).astype(np.float32)
+                'M': np.array(data[self.mode]['classification_labels']).astype(np.int64)
             }
         else:
             self.labels = {
