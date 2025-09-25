@@ -166,7 +166,11 @@ def MMDataLoader(args, num_workers):
 if __name__ == '__main__':
     with open(r"D:\Code\python\Reshow\EMOE\dataset\MOSI\unaligned_50.pkl", 'rb') as f:
         data = pickle.load(f)
-        # print(max(data['train']['vision']))
-        # print(min(data['train']['vision']))
         print(data['train']['audio'].shape)
-        print(data['train']['audio'][0][0])
+        print(data['train']['vision'].shape)
+        print(type(data['train']['id'][0]))
+        # for i in range(50):
+        #     print(f"max:{max(data['train']['audio'][2][i])},min:{min(data['train']['audio'][2][i])}")
+        # print("====vision====")
+        # for i in range(50):
+        #     print(f"max:{max(data['train']['vision'][2][i])},min:{min(data['train']['vision'][2][i])}")
