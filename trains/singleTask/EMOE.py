@@ -50,11 +50,6 @@ class EMOE():
                     gsr = batch_data['gsr'].to(self.args.device)
                     labels = batch_data['labels']['M'].to(self.args.device)
                     labels = labels.view(-1, 1) # labels的形状为（num_samples,1）
-                    # 查看所在cuda
-                    print(f"ECG device: {ecg.device}")
-                    print(f"GSR device: {gsr.device}")
-                    print(f"Vision device: {vision.device}")
-                    print(f"Labels device: {labels.device}")
                     # 模型前向传播
                     output = model(ecg, gsr, vision)
                     w = output['channel_weight']

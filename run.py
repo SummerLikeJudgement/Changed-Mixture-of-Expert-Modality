@@ -45,7 +45,7 @@ def EMOE_run(
     model_name, dataset_name, config=None, config_file="", seeds=[],
     tune_times=500, feature_ECG="", feature_GSR="", feature_V="",
     model_save_dir="", res_save_dir="", log_dir="",
-    gpu_ids= [], num_workers=4, verbose_level=1, mode = ''
+    gpu_ids= [0], num_workers=4, verbose_level=1, mode = ''
 ):
     model_name = model_name.lower()
     dataset_name = dataset_name.lower()
