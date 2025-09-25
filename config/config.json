@@ -26,7 +26,7 @@
     "datasetParams": {
       "biovid": {
         "attn_dropout_gsr": 0.1,
-        "attn_dropout_eda": 0.2,
+        "attn_dropout_ecg": 0.2,
         "attn_dropout_v": 0.0,
         "relu_dropout": 0.0,
         "embed_dropout": 0.2,
@@ -35,10 +35,9 @@
         "batch_size": 16,
         "learning_rate": 0.0001,
         "nlevels": 4,
-        "conv1d_kernel_size_l": 5,
-        "conv1d_kernel_size_a": 5,
+        "conv1d_kernel_size_ecg": 5,
+        "conv1d_kernel_size_gsr": 5,
         "conv1d_kernel_size_v": 5,
-        "text_dropout": 0.5,
         "attn_dropout": 0.3,
         "output_dropout": 0.5,
         "grad_clip": 0.6,
