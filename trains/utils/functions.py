@@ -52,11 +52,10 @@ def count_parameters(model):
     return res
 
 def eva_imp(y_pred, y_true):
-    y_true = y_true.unsqueeze(1)
-    pred_prob = F.softmax(y_pred, dim=1)
+    pred_prob = F.softmax(y_pred, dim=1) # 每个样本预测的概率分布
     correct_prob = pred_prob[torch.arange(len(y_true)), y_true]
     res = 1.0 - correct_prob
-    return res
+    return res # (batch_size,)
 
 def uni_distill(logits1, logits2):
     prob1 = torch.softmax(logits1, dim=-1)
