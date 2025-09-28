@@ -49,7 +49,7 @@ class EMOE():
                     ecg = batch_data['ecg'].to(self.args.device)
                     gsr = batch_data['gsr'].to(self.args.device)
                     labels = batch_data['labels']['M'].to(self.args.device)
-                    labels = label.squeeze() # 移除多余维度，变为(batch_size,)
+                    labels = labels.squeeze() # 移除多余维度，变为(batch_size,)
                     # 模型前向传播
                     output = model(ecg, gsr, vision)
                     w = output['channel_weight']
