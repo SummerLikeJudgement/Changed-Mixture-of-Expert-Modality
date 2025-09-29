@@ -55,7 +55,7 @@ class EMOE():
                     w = output['channel_weight']
 
                     # 损失计算
-                    y_pred.append(torch.argmax(output['logits_c'], dim=1).cpu())
+                    y_pred.append(torch.argmax(output['logits_c']).cpu())
                     y_true.append(labels.cpu())
 
                     loss_task_ecg = self.criterion(output['logits_ecg'], labels)
