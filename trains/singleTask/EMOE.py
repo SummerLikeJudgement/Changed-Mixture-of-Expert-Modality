@@ -49,14 +49,14 @@ class EMOE():
                     ecg = batch_data['ecg'].to(self.args.device)
                     gsr = batch_data['gsr'].to(self.args.device)
                     labels = batch_data['labels']['M'].to(self.args.device)
-                    labels = labels.squeeze() # 移除多余维度，变为(batch_size,)
+                    labels = labels.squeeze(-1) # 移除多余维度，变为(batch_size,)
                     # 模型前向传播
                     output = model(ecg, gsr, vision)
                     w = output['channel_weight']
 
                     # 损失计算
-                    y_pred.append(torch.argmax(output['logits_c']).cpu())
-                    y_true.append(labels.cpu())
+                    y_pred.append(torch.argmax(output['logits_c']).cpu()) # append (batch_size, 5)
+                    y_true.append(labels.view(-1, 1).cpu()) # append (batch_size, 1)
 
                     loss_task_ecg = self.criterion(output['logits_ecg'], labels)
                     loss_task_gsr = self.criterion(output['logits_gsr'], labels)
@@ -150,13 +150,13 @@ class EMOE():
                     gsr = batch_data['gsr'].to(self.args.device)
                     vision = batch_data['vision'].to(self.args.device)
                     labels = batch_data['labels']['M'].to(self.args.device)
-                    labels = labels.view(-1, 1)
+                    labels = labels.squeeze(-1)
                     output = model(ecg, gsr, vision)
 
                     loss = self.criterion(output['logits_c'], labels)
                     eval_loss += loss.item()
                     y_pred.append(output['logits_c'].cpu()) # 预测值
-                    y_true.append(labels.cpu()) # 真实标签
+                    y_true.append(labels.view(-1, 1).cpu()) # 真实标签
                     
         eval_loss = eval_loss / len(dataloader)
         pred, true = torch.cat(y_pred), torch.cat(y_true)
