@@ -16,7 +16,7 @@ class MetricsTop():
     def __eval_biovid_classification(self, y_pred, y_true):
         """
         {
-            0,1,2,3,4
+            "pain":0,1,2,3,4
         }
         """
         # 转化为numpy数组

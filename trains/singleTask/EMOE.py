@@ -55,7 +55,7 @@ class EMOE():
                     w = output['channel_weight']
 
                     # 损失计算
-                    y_pred.append(torch.argmax(output['logits_c']).cpu()) # append (batch_size, 5)
+                    y_pred.append(output['logits_c'].cpu()) # append (batch_size, 5)
                     y_true.append(labels.view(-1, 1).cpu()) # append (batch_size, 1)
 
                     loss_task_ecg = self.criterion(output['logits_ecg'], labels)
@@ -63,10 +63,10 @@ class EMOE():
                     loss_task_v = self.criterion(output['logits_v'], labels)
                     loss_task_m = self.criterion(output['logits_c'], labels)
                     # 每个模态的不确定性分数
-                    ecg_dist = eva_imp(output['logits_ecg'], labels)# (batch_size,)
+                    ecg_dist = eva_imp(output['logits_ecg'], labels)
                     gsr_dist = eva_imp(output['logits_gsr'], labels)
                     v_dist = eva_imp(output['logits_v'], labels)
-                    dist = torch.zeros(v_dist.shape[0], 3).to(self.args.device)# (batch_size, 3)
+                    dist = torch.zeros(v_dist.shape[0], 3).to(self.args.device)
                     for i,_ in enumerate(v_dist):
                         s = 1/(v_dist[i]+0.1) + 1/(ecg_dist[i]+0.1) + 1/(gsr_dist[i]+0.1)
                         dist[i][0] = (1/(ecg_dist[i]+0.1)) / s
