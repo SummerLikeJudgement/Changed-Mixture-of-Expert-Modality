@@ -79,7 +79,7 @@ class EMOE(nn.Module):
             self.out_layer_c = nn.Linear(self.d_ecg*3, output_dim)
 
         # 路由网络，计算权重W
-        self.Router = router(self.orig_d_ecg * self.len_ecg + self.orig_d_gsr * self.len_gsr + self.orig_d_v * self.len_v, 3, self.args.temperature)
+        self.Router = router(self.orig_d_ecg * self.len_v + self.orig_d_gsr * self.len_v + self.orig_d_v * self.len_v, 3, self.args.temperature)
         # 将ecg、gsr序列长度对齐到视觉序列长度
         self.transfer_ecg_ali = nn.Linear(self.len_ecg, self.len_v)
         self.transfer_gsr_ali = nn.Linear(self.len_gsr, self.len_v)
