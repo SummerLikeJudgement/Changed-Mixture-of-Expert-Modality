@@ -4,7 +4,7 @@
     "biovid": {
       "unaligned": {
         "featurePath": "BIOVID/unaligned.pkl",
-        "feature_dims": [35, 39, 35],
+        "feature_dims": [26, 39, 35],
         "train_samples": 8700,
         "num_classes": 5,
         "KeyEval": "Loss"

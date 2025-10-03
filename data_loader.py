@@ -170,13 +170,13 @@ def MMDataLoader(args, num_workers):
     return dataLoader
 
 if __name__ == '__main__':
-    with open(r"D:\Code\python\Reshow\EMOE\dataset\MOSI\unaligned_50.pkl", 'rb') as f:
+    with open(r"D:\Code\python\DeepLearning\BioVid_process\BioVid process\processed\unaligned.pkl", 'rb') as f:
         data = pickle.load(f)
-        print(data['train']['audio'].shape)
-        print(data['train']['vision'].shape)
-        print(data['train']['classification_labels'])
+        print(data['train']['ecg'].shape)
+        print(data['valid']['ecg'].shape)
+        print(data['test']['ecg'].shape)
         # for i in range(50):
-        #     print(f"max:{max(data['train']['audio'][2][i])},min:{min(data['train']['audio'][2][i])}")
+        #     print(f"max:{max(data['train']['audio'][5][i])},min:{min(data['train']['audio'][5][i])}")
         # print("====vision====")
         # for i in range(50):
-        #     print(f"max:{max(data['train']['vision'][2][i])},min:{min(data['train']['vision'][2][i])}")
+        #     print(f"max:{max(data['train']['vision'][5][i])},min:{min(data['train']['vision'][5][i])}")
