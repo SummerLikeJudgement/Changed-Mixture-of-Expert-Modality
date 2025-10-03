@@ -172,9 +172,9 @@ def MMDataLoader(args, num_workers):
 if __name__ == '__main__':
     with open(r"D:\Code\python\DeepLearning\BioVid_process\BioVid process\processed\unaligned.pkl", 'rb') as f:
         data = pickle.load(f)
-        print(data['train']['ecg'].shape)
-        print(data['valid']['ecg'].shape)
-        print(data['test']['ecg'].shape)
+        print(data['train']['gsr'].shape)
+        print(len(data['train']['ecg_lengths']))
+        print(data['test']['vision'].shape)
         # for i in range(50):
         #     print(f"max:{max(data['train']['audio'][5][i])},min:{min(data['train']['audio'][5][i])}")
         # print("====vision====")

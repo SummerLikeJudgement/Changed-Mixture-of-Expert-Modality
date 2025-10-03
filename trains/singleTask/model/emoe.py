@@ -13,7 +13,7 @@ class EMOE(nn.Module):
             if args.need_data_aligned:
                 self.len_ecg, self.len_gsr, self.len_v = 75, 75, 75
             else:
-                self.len_ecg, self.len_gsr, self.len_v = 10, 9, 75
+                self.len_ecg, self.len_gsr, self.len_v = 29, 8, 75
         self.aligned = args.need_data_aligned
         # 原始特征维度
         self.orig_d_ecg, self.orig_d_gsr, self.orig_d_v = args.feature_dims
