@@ -26,9 +26,18 @@ class MetricsTop():
         y_pred_5 = np.argmax(y_pred, axis=1)
         Mult_acc_5 = accuracy_score(y_true, y_pred_5) # 5分类准确率
         F1_score_5 = f1_score(y_true, y_pred_5, average='weighted') # 加权F1分数
-        # 二分类指标（无疼痛/有疼痛）
-        y_pred_bi = np.where(y_pred_5 > 0, 1, 0)
-        y_true_bi = np.where(y_true > 0, 1, 0)
+        # 二分类评估
+        ## p0 vs p4
+        p0p4_mask = (y_true == 0) | (y_true == 4)
+        y_true_p0p4 = y_true[p0p4_mask]
+        y_pred_p0p4 = y_pred[p0p4_mask]
+
+        y_pred_bi = np.where(y_pred_p0p4 == 4, 1, 0)
+        y_true_bi = np.where(y_true_p0p4 == 4, 1, 0)
+        ## 有疼痛vs无疼痛
+        # y_pred_bi = np.where(y_pred_5 > 0, 1, 0)
+        # y_true_bi = np.where(y_true > 0, 1, 0)
+
         acc_bi = accuracy_score(y_true_bi, y_pred_bi)
         F1_bi = f1_score(y_true_bi, y_pred_bi, average='weighted')
 
