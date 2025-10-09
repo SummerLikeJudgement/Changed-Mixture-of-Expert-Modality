@@ -28,9 +28,10 @@ class MetricsTop():
         F1_score_5 = f1_score(y_true, y_pred_class, average='weighted') # 加权F1分数
         # 二分类评估
         ## p0 vs p4
+        y_pred_2 = y_pred_class.reshape(-1,1)
         p0p4_mask = (y_true == 0) | (y_true == 4)
         y_true_p0p4 = y_true[p0p4_mask]
-        y_pred_p0p4 = y_pred_class[p0p4_mask]
+        y_pred_p0p4 = y_pred_2[p0p4_mask]
 
         y_pred_bi = np.where(y_pred_p0p4 == 4, 1, 0)
         y_true_bi = np.where(y_true_p0p4 == 4, 1, 0)
