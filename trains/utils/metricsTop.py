@@ -22,10 +22,10 @@ class MetricsTop():
         # 转化为numpy数组
         y_pred = y_pred.cpu().detach().numpy()
         y_true = y_true.cpu().detach().numpy()
+        y_pred = np.argmax(y_pred, axis=1)
         # 五分类评估
-        y_pred_5 = np.argmax(y_pred, axis=1)
-        Mult_acc_5 = accuracy_score(y_true, y_pred_5) # 5分类准确率
-        F1_score_5 = f1_score(y_true, y_pred_5, average='weighted') # 加权F1分数
+        Mult_acc_5 = accuracy_score(y_true, y_pred) # 5分类准确率
+        F1_score_5 = f1_score(y_true, y_pred, average='weighted') # 加权F1分数
         # 二分类评估
         ## p0 vs p4
         p0p4_mask = (y_true == 0) | (y_true == 4)
