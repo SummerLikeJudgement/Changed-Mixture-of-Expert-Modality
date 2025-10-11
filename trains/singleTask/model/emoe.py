@@ -118,7 +118,7 @@ class EMOE(nn.Module):
         x_v = video.transpose(1, 2)
 
         if not self.aligned:
-            # 未对齐，使用线性层对齐序列长度(batch, feature, seq)
+            # 未对齐，使用线性层对齐序列长度(batch, seq, feature)
             ecg_ = self.transfer_ecg_ali(ecg.permute(0, 2, 1)).permute(0, 2, 1)
             gsr_ = self.transfer_gsr_ali(gsr.permute(0, 2, 1)).permute(0, 2, 1)
             m_i = torch.cat((ecg_, gsr_, video), dim=2)

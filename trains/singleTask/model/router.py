@@ -34,9 +34,8 @@ class router(nn.Module):
         self.out = nn.Linear(channel, dim_num, bias=False)
 
     def forward(self, x):
-        x = x.permute(0, 2, 1)# 将序列长度和特征维度交换
-        b, c ,_ = x.size()
-        y = self.avg_pool(x).veiw(b, c)
+        b, seq ,_ = x.size()
+        y = self.avg_pool(x).veiw(b, seq)
         y = self.fc(y)
         y = self.out(y)
         output = torch.softmax(y, dim=1)
