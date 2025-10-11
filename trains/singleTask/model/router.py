@@ -22,13 +22,13 @@ import torch.nn.functional as F
 
 # SE-router网络
 class router(nn.Module):
-    def __init__(self, channel, dim_num, reduction):
+    def __init__(self, channel, dim_num, ratio):
         super(router, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-            nn.Linear(channel, channel // reduction, bias=False),
+            nn.Linear(channel, channel * ratio, bias=False),
             nn.ReLU(inplace=True),
-            nn.Linear(channel // reduction, channel, bias=False),
+            nn.Linear(channel * ratio, channel, bias=False),
             nn.Sigmoid()
         )
         self.out = nn.Linear(channel, dim_num, bias=False)
