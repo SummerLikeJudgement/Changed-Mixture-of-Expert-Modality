@@ -82,7 +82,7 @@ class EMOE(nn.Module):
         # 原始-router
         # self.Router = router(self.orig_d_ecg * self.len_v + self.orig_d_gsr * self.len_v + self.orig_d_v * self.len_v, 3, self.args.temperature)
         # SE-router
-        self.Router = router(int(3*self.len_v), 3, self.args.temperature)
+        self.Router = router(3*75, 3, self.args.temperature)
         # 将ecg、gsr序列长度对齐到视觉序列长度
         self.transfer_ecg_ali = nn.Linear(self.len_ecg, self.len_v)
         self.transfer_gsr_ali = nn.Linear(self.len_gsr, self.len_v)
