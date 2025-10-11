@@ -79,7 +79,10 @@ class EMOE(nn.Module):
             self.out_layer_c = nn.Linear(self.d_ecg*3, output_dim)
 
         # 路由网络，计算权重W
-        self.Router = router(self.orig_d_ecg * self.len_v + self.orig_d_gsr * self.len_v + self.orig_d_v * self.len_v, 3, self.args.temperature)
+        # 原始-router
+        # self.Router = router(self.orig_d_ecg * self.len_v + self.orig_d_gsr * self.len_v + self.orig_d_v * self.len_v, 3, self.args.temperature)
+        # SE-router
+        self.Router = router(self.len_v*3, 3, self.args.temperature)
         # 将ecg、gsr序列长度对齐到视觉序列长度
         self.transfer_ecg_ali = nn.Linear(self.len_ecg, self.len_v)
         self.transfer_gsr_ali = nn.Linear(self.len_gsr, self.len_v)
@@ -109,13 +112,13 @@ class EMOE(nn.Module):
 
     def forward(self, ecg, gsr, video):
 
-        # 将序列长度和特征维度交换
+        # 将序列长度和特征维度交换(batch, feature, seq)
         x_ecg = ecg.transpose(1, 2)
         x_gsr = gsr.transpose(1, 2)
         x_v = video.transpose(1, 2)
 
         if not self.aligned:
-            # 未对齐，使用线性层对齐序列长度
+            # 未对齐，使用线性层对齐序列长度(batch, feature, seq)
             ecg_ = self.transfer_ecg_ali(ecg.permute(0, 2, 1)).permute(0, 2, 1)
             gsr_ = self.transfer_gsr_ali(gsr.permute(0, 2, 1)).permute(0, 2, 1)
             m_i = torch.cat((ecg_, gsr_, video), dim=2)
