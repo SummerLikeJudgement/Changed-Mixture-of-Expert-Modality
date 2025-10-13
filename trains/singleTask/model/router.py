@@ -24,7 +24,7 @@ import torch.nn.functional as F
 class router(nn.Module):
     def __init__(self, channel, dim_num, ratio):
         super(router, self).__init__()
-        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.avg_pool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Sequential(
             nn.Linear(channel, int(channel * ratio), bias=False),
             nn.ReLU(inplace=True),
