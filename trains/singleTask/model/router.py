@@ -35,7 +35,7 @@ class router(nn.Module):
 
     def forward(self, x):
         b, seq ,_ = x.size()
-        y = self.avg_pool(x).veiw(b, seq)
+        y = self.avg_pool(x).view(b, seq)
         y = self.fc(y)
         y = self.out(y)
         output = torch.softmax(y, dim=1)
