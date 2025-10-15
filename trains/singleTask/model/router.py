@@ -43,7 +43,7 @@ class router(nn.Module):
         x = self.avgpool(x)
         y = self.avgpool(y)
         z = self.avgpool(z)
-        avg = torch.cat([x, y, z], dim=0)
+        avg = torch.cat([x, y, z], dim=1)
         output = torch.softmax(
             self.out(
                 self.fc(avg)
