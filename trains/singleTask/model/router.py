@@ -22,21 +22,30 @@ import torch.nn.functional as F
 
 # SE-router网络
 class router(nn.Module):
-    def __init__(self, channel, dim_num, ratio):
+    def __init__(self, channel, dim_num, t, ratio=8):
         super(router, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool1d(1)
         self.fc = nn.Sequential(
-            nn.Linear(channel, int(channel * ratio), bias=False),
+            nn.Linear(channel, channel // ratio, bias=False),
             nn.ReLU(inplace=True),
-            nn.Linear(int(channel * ratio), channel, bias=False),
+            nn.Linear(channel // ratio, channel, bias=False),
             nn.Sigmoid()
         )
         self.out = nn.Linear(channel, dim_num, bias=False)
+        self.t = t
 
-    def forward(self, x):
-        b, seq ,_ = x.size()
+    def avgpool(self, x):
+        b, seq, _ = x.size()
         y = self.avg_pool(x).view(b, seq)
-        y = self.fc(y)
-        y = self.out(y)
-        output = torch.softmax(y, dim=1)
+        return y
+
+    def forward(self, x, y, z):
+        x = self.avgpool(x)
+        y = self.avgpool(y)
+        z = self.avgpool(z)
+        avg = torch.cat([x, y, z], dim=0)
+        output = torch.softmax(
+            self.out(
+                self.fc(avg)
+            )/self.t, dim=1)
         return output

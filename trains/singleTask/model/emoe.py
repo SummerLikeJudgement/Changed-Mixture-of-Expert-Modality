@@ -117,15 +117,25 @@ class EMOE(nn.Module):
         x_gsr = gsr.transpose(1, 2)
         x_v = video.transpose(1, 2)
 
+        # 原始
+        # if not self.aligned:
+        #     # 未对齐，使用线性层对齐序列长度(batch, seq, feature)
+        #     ecg_ = self.transfer_ecg_ali(ecg.permute(0, 2, 1)).permute(0, 2, 1)
+        #     gsr_ = self.transfer_gsr_ali(gsr.permute(0, 2, 1)).permute(0, 2, 1)
+        #     m_i = torch.cat((ecg_, gsr_, video), dim=2)
+        # else:
+        #     m_i = torch.cat((ecg, gsr, video), dim=2)
+        # # 路由网络获取权重
+        # m_w = self.Router(m_i)
+
+        # SE
         if not self.aligned:
             # 未对齐，使用线性层对齐序列长度(batch, seq, feature)
             ecg_ = self.transfer_ecg_ali(ecg.permute(0, 2, 1)).permute(0, 2, 1)
             gsr_ = self.transfer_gsr_ali(gsr.permute(0, 2, 1)).permute(0, 2, 1)
-            m_i = torch.cat((ecg_, gsr_, video), dim=2)
+            m_w = self.Router(ecg_, gsr_, video)
         else:
-            m_i = torch.cat((ecg, gsr, video), dim=2)
-        # 路由网络获取权重
-        m_w = self.Router(m_i)
+            m_w = self.Router(ecg, gsr, video)
 
         # 如果原始维度与目标维度不同，进行投影
         proj_x_ecg = x_ecg if self.orig_d_ecg == self.d_ecg else self.proj_ecg(x_ecg)
