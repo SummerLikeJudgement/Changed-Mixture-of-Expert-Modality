@@ -20,7 +20,7 @@
       "attn_mask": true,
       "update_epochs": 10,
       "fusion_method": "sum",
-      "temperature": 0.1,
+      "temperature": 0.05,
       "is_distill": true
     },
     "datasetParams": {

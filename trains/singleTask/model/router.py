@@ -47,7 +47,7 @@ class router(nn.Module):
         output = torch.softmax(
             self.out(
                 self.fc(avg)
-            )/self.t, dim=1)
+            )/self.t, dim=1) # 1/t越大，结果越自信（较大的更大，较小的更小）
         return output
 
 
