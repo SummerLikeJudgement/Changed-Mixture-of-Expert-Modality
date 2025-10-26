@@ -182,7 +182,7 @@ class EMOE(nn.Module):
         c_ecg_att = self.self_attentions_ecg(c_ecg)
         if type(c_ecg_att) == tuple:
             c_ecg_att = c_ecg_att[0]
-        c_ecg_att = c_ecg_att[-1]# (batch, seq, d_ecg)
+        c_ecg_att = c_ecg_att[-1]# (batch, d_ecg)
 
         c_v_att = self.self_attentions_v(c_v)
         if type(c_v_att) == tuple:
@@ -220,9 +220,9 @@ class EMOE(nn.Module):
         ecg_weights = m_w[:, 0].view(-1, 1, 1)
         gsr_weights = m_w[:, 1].view(-1, 1, 1)
         v_weights = m_w[:, 2].view(-1, 1, 1)
-        w_ecg = c_ecg_att * ecg_weights
-        w_gsr = c_gsr_att * gsr_weights
-        w_v = c_v_att * v_weights
+        w_ecg = c_ecg * ecg_weights
+        w_gsr = c_gsr * gsr_weights
+        w_v = c_v * v_weights
 
         c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, seq, feat)/(batch, seq, 1024)
         if self.jmt_output_format == "SELF_ATTEN":
