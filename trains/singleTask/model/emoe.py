@@ -91,7 +91,7 @@ class EMOE(nn.Module):
             num_heads=nheads, # todo:JMT的num_heads区分出来
             hidden_dim=self.jmt_hidden_dim,
             num_layers=self.jmt_num_layers,
-            output_format=self.output_format,
+            output_format=self.jmt_output_format,
         )
         if self.jmt_output_format == "SELF_ATTEN":
             dim = dst_feature_dims
