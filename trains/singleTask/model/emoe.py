@@ -100,7 +100,7 @@ class EMOE(nn.Module):
         self.out_layer_c = nn.Sequential(nn.Linear(dim, 128),
                                         nn.ReLU(inplace=False),
                                         nn.Dropout(self.jmt_dropout),
-                                        nn.Linear(128, 5)
+                                        nn.Linear(128, output_dim)
                                         )
 
         # 路由网络，计算权重W
