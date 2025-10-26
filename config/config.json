@@ -25,6 +25,10 @@
     },
     "datasetParams": {
       "biovid": {
+        "jmt_hidden_dim" : 256,
+        "jmt_num_layers" : 1,
+        "jmt_output_format" : "SELF_ATTEN",
+        "jmt_dropout" :0.1,
         "attn_dropout_gsr": 0.1,
         "attn_dropout_ecg": 0.2,
         "attn_dropout_v": 0.1,

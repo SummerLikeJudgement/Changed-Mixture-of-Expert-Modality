@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from ...subNets.transformers_encoder.transformer import TransformerEncoder
+from ...subNets.transformers_encoder.transformer import TransformerEncoder, MultimodalTransformer_w_JR
 from ...singleTask.model.router import router
 
 class EMOE(nn.Module):
@@ -38,6 +38,11 @@ class EMOE(nn.Module):
         self.fusion_method = args.fusion_method
         output_dim = args.output_dim
         self.args = args
+        # jmt的各参数
+        self.jmt_hidden_dim = args.jmt_hidden_dim
+        self.jmt_num_layers = args.jmt_num_layers
+        self.jmt_output_format = args.jmt_output_format
+        self.jmt_dropout = args.jmt_dropout
 
         # 为各模态创建1D卷积投影层，将原始特征维度映射到目标维度
         self.proj_ecg = nn.Conv1d(self.orig_d_ecg, self.d_ecg, kernel_size=args.conv1d_kernel_size_ecg, padding=0, bias=False)
@@ -68,15 +73,35 @@ class EMOE(nn.Module):
         self.proj2_gsr = nn.Linear(self.d_ecg, self.d_ecg)
         self.out_layer_gsr = nn.Linear(self.d_ecg, output_dim)
 
-        # 融合特征预测头
-        if self.fusion_method == "sum": 
-            self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
-            self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
-            self.out_layer_c = nn.Linear(self.d_ecg, output_dim)
-        elif self.fusion_method == "concat":
-            self.proj1_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
-            self.proj2_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
-            self.out_layer_c = nn.Linear(self.d_ecg*3, output_dim)
+        # # 融合特征预测头
+        # if self.fusion_method == "sum":
+        #     self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
+        #     self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
+        #     self.out_layer_c = nn.Linear(self.d_ecg, output_dim)
+        # elif self.fusion_method == "concat":
+        #     self.proj1_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
+        #     self.proj2_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
+        #     self.out_layer_c = nn.Linear(self.d_ecg*3, output_dim)
+
+        # JMT预测头
+        self.multitransfomer = MultimodalTransformer_w_JR(
+            ecg_dim=self.d_ecg,
+            gsr_dim=self.d_gsr,
+            v_dim=self.d_v,
+            num_heads=nheads, # todo:JMT的num_heads区分出来
+            hidden_dim=self.jmt_hidden_dim,
+            num_layers=self.jmt_num_layers,
+            output_format=self.output_format,
+        )
+        if self.jmt_output_format == "SELF_ATTEN":
+            dim = dst_feature_dims
+        elif self.jmt_output_format == "FC":
+            dim = 1024
+        self.out_layer_c = nn.Sequential(nn.Linear(dim, 128),
+                                        nn.ReLU(inplace=False),
+                                        nn.Dropout(self.jmt_dropout),
+                                        nn.Linear(128, 5)
+                                        )
 
         # 路由网络，计算权重W
         # 原始-router
@@ -157,7 +182,7 @@ class EMOE(nn.Module):
         c_ecg_att = self.self_attentions_ecg(c_ecg)
         if type(c_ecg_att) == tuple:
             c_ecg_att = c_ecg_att[0]
-        c_ecg_att = c_ecg_att[-1]
+        c_ecg_att = c_ecg_att[-1]# (batch, seq, d_ecg)
 
         c_v_att = self.self_attentions_v(c_v)
         if type(c_v_att) == tuple:
@@ -183,7 +208,7 @@ class EMOE(nn.Module):
                     self.proj1_v(c_v_att), inplace=True), p=self.output_dropout, training=self.training))
         v_proj += c_v_att
         logits_v = self.out_layer_v(v_proj)
-        # 音频模态预测结果
+        # gsr模态预测结果
         gsr_proj = self.proj2_gsr(
             F.dropout(
                 F.relu(
@@ -191,29 +216,43 @@ class EMOE(nn.Module):
         gsr_proj += c_gsr_att
         logits_gsr = self.out_layer_gsr(gsr_proj)
 
-        # 根据融合方法融合特征
-        if self.fusion_method == "sum": 
-            for i in range(m_w.shape[0]):
-                c_f = c_ecg_att[i] * m_w[i][0] + c_gsr_att[i] * m_w[i][1] + c_v_att[i] * m_w[i][2]
-                if i == 0:
-                    c_fusion = c_f.unsqueeze(0)
-                else:
-                    c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
-        elif self.fusion_method == "concat":        
-            for i in range(m_w.shape[0]):
-                c_f = torch.cat([c_ecg_att[i] * m_w[i][0], c_gsr_att[i] * m_w[i][1], c_v_att[i] * m_w[i][2]], dim=0) * 3
-                if i == 0:
-                    c_fusion = c_f.unsqueeze(0)
-                else:
-                    c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
+        # 加权融合模态预测结果
+        w_ecg = torch.zeros_like(c_ecg_att)
+        w_gsr = torch.zeros_like(c_gsr_att)
+        w_v = torch.zeros_like(c_v_att)
+        for i in range(m_w.shape[0]):
+            w_ecg[i] = c_ecg_att[i] * m_w[i][0]
+            w_gsr[i] = c_gsr_att[i] * m_w[i][1]
+            w_v[i] = c_v_att[i] * m_w[i][2]
 
-        # 融合特征预测头
-        c_proj = self.proj2_c(
-            F.dropout(
-                F.relu(
-                    self.proj1_c(c_fusion), inplace=True), p=self.output_dropout, training=self.training))
-        c_proj += c_fusion
+        c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, seq, feat)/(batch, seq, 1024)
+        if self.jmt_output_format == "SELF_ATTEN":
+            c_proj += c_ecg_att
         logits_c = self.out_layer_c(c_proj)
+
+        # # 根据融合方法融合特征
+        # if self.fusion_method == "sum":
+        #     for i in range(m_w.shape[0]):
+        #         c_f = c_ecg_att[i] * m_w[i][0] + c_gsr_att[i] * m_w[i][1] + c_v_att[i] * m_w[i][2]
+        #         if i == 0:
+        #             c_fusion = c_f.unsqueeze(0)
+        #         else:
+        #             c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
+        # elif self.fusion_method == "concat":
+        #     for i in range(m_w.shape[0]):
+        #         c_f = torch.cat([c_ecg_att[i] * m_w[i][0], c_gsr_att[i] * m_w[i][1], c_v_att[i] * m_w[i][2]], dim=0) * 3
+        #         if i == 0:
+        #             c_fusion = c_f.unsqueeze(0)
+        #         else:
+        #             c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
+        #
+        # # 融合特征预测头
+        # c_proj = self.proj2_c(
+        #     F.dropout(
+        #         F.relu(
+        #             self.proj1_c(c_fusion), inplace=True), p=self.output_dropout, training=self.training))
+        # c_proj += c_fusion
+        # logits_c = self.out_layer_c(c_proj)
 
 
         res = {
@@ -226,6 +265,6 @@ class EMOE(nn.Module):
             'ecg_proj': ecg_proj,
             'v_proj': v_proj,
             'gsr_proj': gsr_proj,
-            'c_fea': c_fusion,
+            # 'c_fea': c_fusion,
         }
         return res

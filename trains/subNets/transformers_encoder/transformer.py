@@ -198,6 +198,148 @@ def LayerNorm(embedding_dim):
     return m
 
 
+### JMT
+
+class SequentialEncoder(nn.Sequential):
+    def forward(self, x):
+        for module in self._modules.values():
+            x = module(x)
+        return x
+
+class TransformerEncoderBlock(nn.Module):
+    def __init__(self, input_dim, num_heads, hidden_dim, num_layers):
+        super(TransformerEncoderBlock, self).__init__()
+        self.layers = SequentialEncoder(
+            *[TransformerEncoderLayers(input_dim, num_heads, hidden_dim)
+              for _ in range(num_layers)])
+
+    def forward(self, x):
+        x = self.layers(x)
+        return x
+
+class TransformerEncoderLayers(nn.Module):
+    def __init__(self, input_dim, num_heads, hidden_dim):
+        super(TransformerEncoderLayers, self).__init__()
+        self.attention = nn.MultiheadAttention(input_dim, num_heads)
+        self.feed_forward = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, input_dim)
+        )
+        self.layer_norm1 = nn.LayerNorm(input_dim)
+        self.layer_norm2 = nn.LayerNorm(input_dim)
+
+    def forward(self, x):
+        # Apply self-attention
+        attn_output, _ = self.attention(x, x, x)
+        x = x + attn_output
+        x = self.layer_norm1(x)
+
+        # Apply feed forward network
+        ff_output = self.feed_forward(x)
+        x = x + ff_output
+        x = self.layer_norm2(x)
+        return x
+
+
+# JMT模型
+class MultimodalTransformer_w_JR(nn.Module):
+    def __init__(self, ecg_dim, gsr_dim, v_dim, num_heads, hidden_dim,
+                 num_layers, output_format):
+        super(MultimodalTransformer_w_JR, self).__init__()
+
+        self.output_format = output_format
+
+        # Cross attention
+        self.cross_attention_ecg = nn.MultiheadAttention(ecg_dim, num_heads)
+        self.cross_attention_gsr = nn.MultiheadAttention(gsr_dim, num_heads)
+        self.cross_attention_v = nn.MultiheadAttention(v_dim, num_heads)
+
+        if self.output_format == 'FC':
+            # Fully connected layer for the final output
+            self.out_layer1 = nn.Linear(ecg_dim*6, 1024)
+
+        elif self.output_format == 'SELF_ATTEN':
+            # Final attention module
+            self.final_visual_encoder = TransformerEncoderBlock(ecg_dim,
+                                                                num_heads,
+                                                                hidden_dim,
+                                                                num_layers)
+            self.final_self_attention = nn.MultiheadAttention(ecg_dim, num_heads)
+
+        else:
+            raise NotImplementedError(self.output_format)
+
+    def forward(self, ecg_features, gsr_features, vision_features):
+        # Permute dimension from (batch, seq, feature) to (seq, batch, feature)
+        ecg_features = ecg_features.permute(1, 0, 2)
+        gsr_features = gsr_features.permute(1, 0, 2)
+        vision_features = vision_features.permute(1, 0, 2)
+
+        # Do all the cross-attention
+        cross_attention_output_ecg_gsr, _ = self.cross_attention_ecg(
+            ecg_features, gsr_features, gsr_features)
+        cross_attention_output_gsr_ecg, _ = self.cross_attention_gsr(
+            gsr_features, ecg_features, ecg_features)
+        cross_attention_output_v_ecg, _ = self.cross_attention_ecg(
+            vision_features, ecg_features, ecg_features)
+        cross_attention_output_ecg_v, _ = self.cross_attention_ecg(
+            ecg_features, vision_features, vision_features)
+        cross_attention_output_v_gsr, _ = self.cross_attention_v(
+            vision_features, gsr_features, gsr_features)
+        cross_attention_output_gsr_v, _ = self.cross_attention_gsr(
+            gsr_features, vision_features, vision_features)
+
+        if self.output_format == "SELF_ATTEN":
+            '''
+             --- [Start] Final Attention module ---
+            '''
+
+            stack_attention = torch.stack((cross_attention_output_ecg_gsr,
+                                           cross_attention_output_gsr_ecg,
+                                           cross_attention_output_v_ecg,
+                                           cross_attention_output_ecg_v,
+                                           cross_attention_output_v_gsr,
+                                           cross_attention_output_gsr_v), dim=2)
+            stack_attention = stack_attention.permute(1, 0, 2, 3)
+            stack_attention_flatten = stack_attention.flatten(0, 1).permute(1, 0, 2)
+            stack_attention_flatten = stack_attention_flatten
+            b_size = stack_attention.shape[0]
+            seq_size = stack_attention.shape[1]
+            final_encoded = self.final_visual_encoder(stack_attention_flatten)
+
+            final_attention, _ = self.final_self_attention(final_encoded,
+                                                           final_encoded,
+                                                           final_encoded)
+            final_attention = final_attention.permute(1, 0, 2)
+            final_attention_unflatten = final_attention.unflatten(0, (
+            b_size, seq_size))
+
+            final_attention_unflatten = final_attention_unflatten[:, :, -1, :]
+            # bsz, seq, feature.
+            '''
+             --- [End] Final Attention module ---
+            '''
+
+            return final_attention_unflatten # (batch, seq, d_ecg)
+
+        elif self.output_format == 'FC':
+            # Concatenate Cross-attention outputs
+            concat_attention = torch.cat((cross_attention_output_ecg_gsr,
+                                           cross_attention_output_gsr_ecg,
+                                           cross_attention_output_v_ecg,
+                                           cross_attention_output_ecg_v,
+                                           cross_attention_output_v_gsr,
+                                           cross_attention_output_gsr_v), dim=2)
+            out = self.out_layer1(concat_attention)  # bsz, seq, 1024
+
+            return out # (batch, seq, 1024)
+
+        else:
+            raise NotImplementedError(self.output_format)
+
+
+
 if __name__ == '__main__':
     encoder = TransformerEncoder(300, 4, 2)
     x = torch.tensor(torch.rand(20, 2, 300))
