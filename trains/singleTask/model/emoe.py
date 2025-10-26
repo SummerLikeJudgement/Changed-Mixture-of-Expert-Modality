@@ -217,12 +217,12 @@ class EMOE(nn.Module):
         logits_gsr = self.out_layer_gsr(gsr_proj)
 
         # 加权融合模态预测结果
-        ecg_weights = m_w[:, 0].view(-1, 1, 1)
-        gsr_weights = m_w[:, 1].view(-1, 1, 1)
-        v_weights = m_w[:, 2].view(-1, 1, 1)
-        w_ecg = c_ecg * ecg_weights
-        w_gsr = c_gsr * gsr_weights
-        w_v = c_v * v_weights
+        ecg_weights = m_w[:, 0].view(-1, 1)
+        gsr_weights = m_w[:, 1].view(-1, 1)
+        v_weights = m_w[:, 2].view(-1, 1)
+        w_ecg = c_ecg_att * ecg_weights
+        w_gsr = c_gsr_att * gsr_weights
+        w_v = c_v_att * v_weights
 
         c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, seq, feat)/(batch, seq, 1024)
         if self.jmt_output_format == "SELF_ATTEN":
