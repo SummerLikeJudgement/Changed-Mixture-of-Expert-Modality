@@ -217,11 +217,11 @@ class EMOE(nn.Module):
         gsr_proj += c_gsr_att
         logits_gsr = self.out_layer_gsr(gsr_proj)
 
-        # 加权融合模态预测结果 todo:使用高级特征融合
+        # 加权融合模态预测结果
 
-        ecg_weights = m_w[:, 0].view(1, -1, 1)
-        gsr_weights = m_w[:, 1].view(1, -1, 1)
-        v_weights = m_w[:, 2].view(1, -1, 1)
+        ecg_weights = m_w[:, 0].unsqueeze(1).unsqueeze(2)  # (batch, 1, 1)
+        gsr_weights = m_w[:, 1].unsqueeze(1).unsqueeze(2)
+        v_weights = m_w[:, 2].unsqueeze(1).unsqueeze(2)
 
         w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
         w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
