@@ -222,10 +222,10 @@ class EMOE(nn.Module):
         ecg_weights = m_w[:, 0].view(1, -1, 1)
         gsr_weights = m_w[:, 1].view(1, -1, 1)
         v_weights = m_w[:, 2].view(1, -1, 1)
-        
-        w_ecg = c_ecg_att_seq * ecg_weights
-        w_gsr = c_gsr_att_seq * gsr_weights
-        w_v = c_v_att_seq * v_weights
+
+        w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
+        w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
+        w_v = c_v_att_seq.permute(1, 0, 2) * v_weights
 
         c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, seq, feat)/(batch, seq, 1024)
         logits_c = self.out_layer_c(c_proj)
