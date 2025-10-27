@@ -345,25 +345,24 @@ class MultimodalTransformer_w_JR(nn.Module):
         super(MultimodalTransformer_w_JR, self).__init__()
 
         self.output_format = output_format
+        self.ecg_dim = ecg_dim
 
-        # Cross attention - 修改为处理2D输入
-        self.cross_attention_ecg = nn.MultiheadAttention(ecg_dim, num_heads, batch_first=True)
-        self.cross_attention_gsr = nn.MultiheadAttention(gsr_dim, num_heads, batch_first=True)
-        self.cross_attention_v = nn.MultiheadAttention(v_dim, num_heads, batch_first=True)
+        # Cross attention
+        self.cross_attention_ecg = nn.MultiheadAttention(ecg_dim, num_heads)
+        self.cross_attention_gsr = nn.MultiheadAttention(gsr_dim, num_heads)
+        self.cross_attention_v = nn.MultiheadAttention(v_dim, num_heads)
 
         if self.output_format == 'FC':
             # Fully connected layer for the final output
             self.out_layer1 = nn.Linear(ecg_dim * 6, 1024)
 
         elif self.output_format == 'SELF_ATTEN':
-            # 为2D输入创建简单的Transformer层
-            encoder_layer = nn.TransformerEncoderLayer(
-                d_model=ecg_dim,
-                nhead=num_heads,
-                dim_feedforward=hidden_dim,
-                batch_first=True
-            )
-            self.final_transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+            # Final attention module - 修改为处理2D输入
+            self.final_visual_encoder = TransformerEncoderBlock(ecg_dim,
+                                                                num_heads,
+                                                                hidden_dim,
+                                                                num_layers)
+            self.final_self_attention = nn.MultiheadAttention(ecg_dim, num_heads)
 
         else:
             raise NotImplementedError(self.output_format)
@@ -371,12 +370,12 @@ class MultimodalTransformer_w_JR(nn.Module):
     def forward(self, ecg_features, gsr_features, vision_features):
         """
         输入形状: (batch_size, feature_dim)
-        输出形状: (batch_size, feature_dim) 或 (batch_size, 1024)
+        输出形状: (batch_size, feature_dim)
         """
-        # 对于2D输入，添加序列维度 (batch, feat) -> (batch, 1, feat)
-        ecg_features = ecg_features.unsqueeze(1)  # (batch, 1, ecg_dim)
-        gsr_features = gsr_features.unsqueeze(1)  # (batch, 1, gsr_dim)
-        vision_features = vision_features.unsqueeze(1)  # (batch, 1, v_dim)
+        # 对于2D输入，添加序列维度 (batch, feat) -> (1, batch, feat)
+        ecg_features = ecg_features.unsqueeze(0)  # (1, batch, ecg_dim)
+        gsr_features = gsr_features.unsqueeze(0)  # (1, batch, gsr_dim)
+        vision_features = vision_features.unsqueeze(0)  # (1, batch, v_dim)
 
         # Do all the cross-attention
         cross_attention_output_ecg_gsr, _ = self.cross_attention_ecg(
@@ -393,36 +392,61 @@ class MultimodalTransformer_w_JR(nn.Module):
             gsr_features, vision_features, vision_features)
 
         if self.output_format == "SELF_ATTEN":
-            # 拼接所有交叉注意力输出 (batch, 1, ecg_dim*6)
-            concat_attention = torch.cat((cross_attention_output_ecg_gsr,
-                                          cross_attention_output_gsr_ecg,
-                                          cross_attention_output_v_ecg,
-                                          cross_attention_output_ecg_v,
-                                          cross_attention_output_v_gsr,
-                                          cross_attention_output_gsr_v), dim=2)
+            '''
+             --- [Start] Final Attention module ---
+            '''
+            # 对于2D输入，stack的维度调整
+            stack_attention = torch.stack((cross_attention_output_ecg_gsr,
+                                           cross_attention_output_gsr_ecg,
+                                           cross_attention_output_v_ecg,
+                                           cross_attention_output_ecg_v,
+                                           cross_attention_output_v_gsr,
+                                           cross_attention_output_gsr_v), dim=2)
+            # stack_attention shape: (1, batch, 6, ecg_dim)
 
-            # 通过Transformer编码器
-            final_output = self.final_transformer(concat_attention)  # (batch, 1, ecg_dim)
+            # 调整维度以适应原有的处理逻辑
+            stack_attention = stack_attention.permute(1, 0, 2, 3)  # (batch, 1, 6, ecg_dim)
+            stack_attention_flatten = stack_attention.flatten(0, 1)  # (batch, 6, ecg_dim)
+            stack_attention_flatten = stack_attention_flatten.permute(1, 0, 2)  # (6, batch, ecg_dim)
+
+            b_size = stack_attention.shape[0]  # batch_size
+            seq_size = stack_attention.shape[1]  # 1
+
+            final_encoded = self.final_visual_encoder(stack_attention_flatten)
+
+            final_attention, _ = self.final_self_attention(final_encoded,
+                                                           final_encoded,
+                                                           final_encoded)
+            final_attention = final_attention.permute(1, 0, 2)  # (batch, 6, ecg_dim)
+
+            # 由于只有1个时间步，直接取最后一个特征
+            final_attention_unflatten = final_attention.unflatten(0, (b_size, seq_size))  # (batch, 1, 6, ecg_dim)
+
+            # 取最后一个交叉注意力输出的特征 (batch, 1, ecg_dim)
+            final_attention_unflatten = final_attention_unflatten[:, :, -1, :]
 
             # 移除序列维度 (batch, 1, ecg_dim) -> (batch, ecg_dim)
-            final_output = final_output.squeeze(1)
+            final_output = final_attention_unflatten.squeeze(1)
+            '''
+             --- [End] Final Attention module ---
+            '''
 
             return final_output
 
         elif self.output_format == 'FC':
-            # 拼接所有交叉注意力输出 (batch, 1, ecg_dim*6)
+            # Concatenate Cross-attention outputs
             concat_attention = torch.cat((cross_attention_output_ecg_gsr,
                                           cross_attention_output_gsr_ecg,
                                           cross_attention_output_v_ecg,
                                           cross_attention_output_ecg_v,
                                           cross_attention_output_v_gsr,
                                           cross_attention_output_gsr_v), dim=2)
+            # concat_attention shape: (1, batch, ecg_dim*6)
 
-            # 通过全连接层
-            out = self.out_layer1(concat_attention)  # (batch, 1, 1024)
+            out = self.out_layer1(concat_attention)  # (1, batch, 1024)
 
-            # 移除序列维度 (batch, 1, 1024) -> (batch, 1024)
-            out = out.squeeze(1)
+            # 移除序列维度 (1, batch, 1024) -> (batch, 1024)
+            out = out.squeeze(0)
 
             return out
 
