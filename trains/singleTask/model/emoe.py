@@ -39,6 +39,7 @@ class EMOE(nn.Module):
         output_dim = args.output_dim
         self.args = args
         # jmt的各参数
+        self.jmt_nheads = args.jmt_nheads
         self.jmt_hidden_dim = args.jmt_hidden_dim
         self.jmt_num_layers = args.jmt_num_layers
         self.jmt_output_format = args.jmt_output_format
@@ -88,7 +89,7 @@ class EMOE(nn.Module):
             ecg_dim=self.d_ecg,
             gsr_dim=self.d_gsr,
             v_dim=self.d_v,
-            num_heads=nheads, # todo:JMT的num_heads区分出来
+            num_heads=self.jmt_nheads,
             hidden_dim=self.jmt_hidden_dim,
             num_layers=self.jmt_num_layers,
             output_format=self.jmt_output_format,
@@ -181,18 +182,18 @@ class EMOE(nn.Module):
         # 对每个模态应用transformer，得到高级特征
         c_ecg_att = self.self_attentions_ecg(c_ecg)
         if type(c_ecg_att) == tuple:
-            c_ecg_att = c_ecg_att[0]
-        c_ecg_att = c_ecg_att[-1]# (batch, d_ecg)
+            c_ecg_att_seq = c_ecg_att[0]
+        c_ecg_att = c_ecg_att_seq[-1] # (batch, feat)
 
         c_v_att = self.self_attentions_v(c_v)
         if type(c_v_att) == tuple:
-            c_v_att = c_v_att[0]
-        c_v_att = c_v_att[-1]
+            c_v_att_seq = c_v_att[0]
+        c_v_att = c_v_att_seq[-1]
 
         c_gsr_att = self.self_attentions_gsr(c_gsr)
         if type(c_gsr_att) == tuple:
-            c_gsr_att = c_gsr_att[0]
-        c_gsr_att = c_gsr_att[-1]
+            c_gsr_att_seq = c_gsr_att[0]
+        c_gsr_att = c_gsr_att_seq[-1]
 
         # ecg模态预测结果
         ecg_proj = self.proj2_ecg(
@@ -217,17 +218,18 @@ class EMOE(nn.Module):
         logits_gsr = self.out_layer_gsr(gsr_proj)
 
         # 加权融合模态预测结果 todo:使用高级特征融合
+
         ecg_weights = m_w[:, 0].view(1, -1, 1)
         gsr_weights = m_w[:, 1].view(1, -1, 1)
         v_weights = m_w[:, 2].view(1, -1, 1)
-        w_ecg = c_ecg * ecg_weights
-        w_gsr = c_gsr * gsr_weights
-        w_v = c_v * v_weights
+        
+        w_ecg = c_ecg_att_seq * ecg_weights
+        w_gsr = c_gsr_att_seq * gsr_weights
+        w_v = c_v_att_seq * v_weights
 
         c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, seq, feat)/(batch, seq, 1024)
-        if self.jmt_output_format == "SELF_ATTEN":
-            c_proj += c_ecg_att
         logits_c = self.out_layer_c(c_proj)
+
 
         # # 根据融合方法融合特征
         # if self.fusion_method == "sum":
