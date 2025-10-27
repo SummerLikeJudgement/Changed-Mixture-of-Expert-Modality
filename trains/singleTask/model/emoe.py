@@ -180,19 +180,19 @@ class EMOE(nn.Module):
         c_gsr = c_gsr.permute(2, 0, 1)
 
         # 对每个模态应用transformer，得到高级特征
-        c_ecg_att = self.self_attentions_ecg(c_ecg)
-        if type(c_ecg_att) == tuple:
-            c_ecg_att_seq = c_ecg_att[0]
+        c_ecg_att_seq = self.self_attentions_ecg(c_ecg)
+        if type(c_ecg_att_seq) == tuple:
+            c_ecg_att_seq = c_ecg_att_seq[0]
         c_ecg_att = c_ecg_att_seq[-1] # (batch, feat)
 
-        c_v_att = self.self_attentions_v(c_v)
-        if type(c_v_att) == tuple:
-            c_v_att_seq = c_v_att[0]
+        c_v_att_seq = self.self_attentions_v(c_v)
+        if type(c_v_att_seq) == tuple:
+            c_v_att_seq = c_v_att_seq[0]
         c_v_att = c_v_att_seq[-1]
 
-        c_gsr_att = self.self_attentions_gsr(c_gsr)
-        if type(c_gsr_att) == tuple:
-            c_gsr_att_seq = c_gsr_att[0]
+        c_gsr_att_seq = self.self_attentions_gsr(c_gsr)
+        if type(c_gsr_att_seq) == tuple:
+            c_gsr_att_seq = c_gsr_att_seq[0]
         c_gsr_att = c_gsr_att_seq[-1]
 
         # ecg模态预测结果
