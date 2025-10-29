@@ -199,7 +199,6 @@ def LayerNorm(embedding_dim):
 
 
 ### JMT
-
 class SequentialEncoder(nn.Sequential):
     def forward(self, x):
         for module in self._modules.values():
@@ -345,7 +344,7 @@ class MultimodalTransformer_w_JR(nn.Module):
                                            cross_attention_output_ecg_v,
                                            cross_attention_output_v_gsr,
                                            cross_attention_output_gsr_v), dim=2)
-            out = self.out_layer1(concat_attention)  # bsz, seq, 1024
+            out = self.out_layer1(concat_attention) # bsz, seq, 1024
 
             return out # (batch, seq, 1024)
 

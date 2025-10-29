@@ -94,10 +94,11 @@ class EMOE(nn.Module):
         #                                 nn.Dropout(self.jmt_dropout),
         #                                 nn.Linear(128, output_dim)
         #                                 )
+        self.out_layer_c = nn.Linear(dim, output_dim)
         # 3d JMT融合特征预测头
-        self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
-        self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
-        self.out_layer_c = nn.Linear(self.d_ecg, output_dim)
+        # self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
+        # self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
+        # self.out_layer_c = nn.Linear(self.d_ecg, output_dim)
 
         # 路由网络，计算权重W
         # 原始-router
@@ -214,32 +215,32 @@ class EMOE(nn.Module):
 
         # 加权融合模态预测结果
         ## 3d张量
-        ecg_weights = m_w[:, 0].unsqueeze(1).unsqueeze(2)  # (batch, 1, 1)
-        gsr_weights = m_w[:, 1].unsqueeze(1).unsqueeze(2)
-        v_weights = m_w[:, 2].unsqueeze(1).unsqueeze(2)
-        w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
-        w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
-        w_v = c_v_att_seq.permute(1, 0, 2) * v_weights
-        ## 3d预测头
-        c_att_seq = self.multitransfomer(w_ecg, w_gsr, w_v).permute(1, 0, 2) # (seq, batch, feat)
-        c_att = c_att_seq[-1] # (batch, feat)
-        c_proj = self.proj2_c(
-            F.dropout(
-                F.relu(
-                    self.proj1_c(c_att), inplace=True), p=self.output_dropout, training=self.training))
-        c_proj += c_att
-        logits_c = self.out_layer_c(c_proj)
+        # ecg_weights = m_w[:, 0].unsqueeze(1).unsqueeze(2)  # (batch, 1, 1)
+        # gsr_weights = m_w[:, 1].unsqueeze(1).unsqueeze(2)
+        # v_weights = m_w[:, 2].unsqueeze(1).unsqueeze(2)
+        # w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
+        # w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
+        # w_v = c_v_att_seq.permute(1, 0, 2) * v_weights
+        # ## 3d预测头
+        # c_att_seq = self.multitransfomer(w_ecg, w_gsr, w_v).permute(1, 0, 2) # (seq, batch, feat)
+        # c_att = c_att_seq[-1] # (batch, feat)
+        # c_proj = self.proj2_c(
+        #     F.dropout(
+        #         F.relu(
+        #             self.proj1_c(c_att), inplace=True), p=self.output_dropout, training=self.training))
+        # c_proj += c_att
+        # logits_c = self.out_layer_c(c_proj)
 
         ## 2d张量
-        # ecg_weights = m_w[:, 0].view(-1, 1)
-        # gsr_weights = m_w[:, 1].view(-1, 1)
-        # v_weights = m_w[:, 2].view(-1, 1)
-        # w_ecg = c_ecg_att * ecg_weights
-        # w_gsr = c_gsr_att * gsr_weights
-        # w_v = c_v_att * v_weights
+        ecg_weights = m_w[:, 0].view(-1, 1)
+        gsr_weights = m_w[:, 1].view(-1, 1)
+        v_weights = m_w[:, 2].view(-1, 1)
+        w_ecg = c_ecg_att * ecg_weights
+        w_gsr = c_gsr_att * gsr_weights
+        w_v = c_v_att * v_weights
         ## 2d预测头
-        # c_proj = self.multitransfomer(w_ecg.unsqueeze(0), w_gsr.unsqueeze(0), w_v.unsqueeze(0))# (batch, feat)/(batch, 1024)
-        # logits_c = self.out_layer_c(c_proj)
+        c_proj = self.multitransfomer(w_ecg.unsqueeze(0), w_gsr.unsqueeze(0), w_v.unsqueeze(0))# (batch, feat)/(batch, 1024)
+        logits_c = self.out_layer_c(c_proj)
 
 
         res = {
