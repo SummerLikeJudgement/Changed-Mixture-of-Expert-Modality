@@ -217,9 +217,12 @@ class EMOE(nn.Module):
         ecg_weights = m_w[:, 0].unsqueeze(1).unsqueeze(2)  # (batch, 1, 1)
         gsr_weights = m_w[:, 1].unsqueeze(1).unsqueeze(2)
         v_weights = m_w[:, 2].unsqueeze(1).unsqueeze(2)
-        w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
-        w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
-        w_v = c_v_att_seq.permute(1, 0, 2) * v_weights
+        ca_ecg_att = self.transfer_ecg_ali(c_ecg_att_seq.permute(1, 2, 0)).permute(0, 2, 1) # batch, feat, seq
+        ca_gsr_att = self.transfer_gsr_ali(c_gsr_att_seq.permute(1, 2, 0)).permute(0, 2, 1)
+        ca_v_att = c_v_att_seq.permute(1, 0, 2)
+        w_ecg = ca_ecg_att * ecg_weights
+        w_gsr = ca_gsr_att * gsr_weights
+        w_v = ca_v_att * v_weights
         ## 3d预测头
         c_att_seq = self.multitransfomer(w_ecg, w_gsr, w_v).permute(1, 0, 2) # (seq, batch, feat)
         c_att = c_att_seq[-1] # (batch, feat)
