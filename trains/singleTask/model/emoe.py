@@ -74,16 +74,6 @@ class EMOE(nn.Module):
         self.proj2_gsr = nn.Linear(self.d_ecg, self.d_ecg)
         self.out_layer_gsr = nn.Linear(self.d_ecg, output_dim)
 
-        # # 融合特征预测头
-        # if self.fusion_method == "sum":
-        #     self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
-        #     self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
-        #     self.out_layer_c = nn.Linear(self.d_ecg, output_dim)
-        # elif self.fusion_method == "concat":
-        #     self.proj1_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
-        #     self.proj2_c = nn.Linear(self.d_ecg*3, self.d_ecg*3)
-        #     self.out_layer_c = nn.Linear(self.d_ecg*3, output_dim)
-
         # JMT预测头
         self.multitransfomer = MultimodalTransformer_w_JR(
             ecg_dim=self.d_ecg,
@@ -99,11 +89,15 @@ class EMOE(nn.Module):
         elif self.jmt_output_format == "FC":
             dim = 1024
         # 2d JMT融合特征预测头
-        self.out_layer_c = nn.Sequential(nn.Linear(dim, 128),
-                                        nn.ReLU(inplace=False),
-                                        nn.Dropout(self.jmt_dropout),
-                                        nn.Linear(128, output_dim)
-                                        )
+        # self.out_layer_c = nn.Sequential(nn.Linear(dim, 128),
+        #                                 nn.ReLU(inplace=False),
+        #                                 nn.Dropout(self.jmt_dropout),
+        #                                 nn.Linear(128, output_dim)
+        #                                 )
+        # 3d JMT融合特征预测头
+        self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
+        self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
+        self.out_layer_c = nn.Linear(self.d_ecg, output_dim)
 
         # 路由网络，计算权重W
         # 原始-router
@@ -159,7 +153,7 @@ class EMOE(nn.Module):
 
         # SE
         if not self.aligned:
-            # 未对齐，使用线性层对齐序列长度(batch, seq, feature)
+            # 未对齐，使用线性层对齐序列长度 (batch, seq, feature)
             ecg_ = self.transfer_ecg_ali(ecg.permute(0, 2, 1)).permute(0, 2, 1)
             gsr_ = self.transfer_gsr_ali(gsr.permute(0, 2, 1)).permute(0, 2, 1)
             m_w = self.Router(ecg_, gsr_, video)
@@ -175,13 +169,13 @@ class EMOE(nn.Module):
         c_ecg = self.encoder_c(proj_x_ecg)
         c_v = self.encoder_c(proj_x_v)
         c_gsr = self.encoder_c(proj_x_gsr)
-
+        # 交换维度(seq, batch, feat)
         c_ecg = c_ecg.permute(2, 0, 1)
         c_v = c_v.permute(2, 0, 1)
         c_gsr = c_gsr.permute(2, 0, 1)
 
         # 对每个模态应用transformer，得到高级特征
-        c_ecg_att_seq = self.self_attentions_ecg(c_ecg)
+        c_ecg_att_seq = self.self_attentions_ecg(c_ecg) # (seq, batch, feat)
         if type(c_ecg_att_seq) == tuple:
             c_ecg_att_seq = c_ecg_att_seq[0]
         c_ecg_att = c_ecg_att_seq[-1] # (batch, feat)
@@ -220,47 +214,31 @@ class EMOE(nn.Module):
 
         # 加权融合模态预测结果
         ## 3d张量
-        # ecg_weights = m_w[:, 0].unsqueeze(1).unsqueeze(2)  # (batch, 1, 1)
-        # gsr_weights = m_w[:, 1].unsqueeze(1).unsqueeze(2)
-        # v_weights = m_w[:, 2].unsqueeze(1).unsqueeze(2)
-        #
-        # w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
-        # w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
-        # w_v = c_v_att_seq.permute(1, 0, 2) * v_weights
-        ## 2d张量
-        ecg_weights = m_w[:, 0].view(-1, 1)
-        gsr_weights = m_w[:, 1].view(-1, 1)
-        v_weights = m_w[:, 2].view(-1, 1)
-        w_ecg = c_ecg_att * ecg_weights
-        w_gsr = c_gsr_att * gsr_weights
-        w_v = c_v_att * v_weights
-
-        c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, feat)/(batch, 1024)
+        ecg_weights = m_w[:, 0].unsqueeze(1).unsqueeze(2)  # (batch, 1, 1)
+        gsr_weights = m_w[:, 1].unsqueeze(1).unsqueeze(2)
+        v_weights = m_w[:, 2].unsqueeze(1).unsqueeze(2)
+        w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
+        w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
+        w_v = c_v_att_seq.permute(1, 0, 2) * v_weights
+        ## 3d预测头
+        c_att_seq = self.multitransfomer(w_ecg, w_gsr, w_v).permute(1, 0, 2) # (seq, batch, feat)
+        c_att = c_att_seq[-1] # (batch, feat)
+        c_proj = self.proj2_c(
+            F.dropout(
+                F.relu(
+                    self.proj1_c(c_att), inplace=True), p=self.output_dropout, training=self.training))
+        c_proj += c_att
         logits_c = self.out_layer_c(c_proj)
 
-
-        # # 根据融合方法融合特征
-        # if self.fusion_method == "sum":
-        #     for i in range(m_w.shape[0]):
-        #         c_f = c_ecg_att[i] * m_w[i][0] + c_gsr_att[i] * m_w[i][1] + c_v_att[i] * m_w[i][2]
-        #         if i == 0:
-        #             c_fusion = c_f.unsqueeze(0)
-        #         else:
-        #             c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
-        # elif self.fusion_method == "concat":
-        #     for i in range(m_w.shape[0]):
-        #         c_f = torch.cat([c_ecg_att[i] * m_w[i][0], c_gsr_att[i] * m_w[i][1], c_v_att[i] * m_w[i][2]], dim=0) * 3
-        #         if i == 0:
-        #             c_fusion = c_f.unsqueeze(0)
-        #         else:
-        #             c_fusion = torch.cat([c_fusion, c_f.unsqueeze(0)], dim=0)
-        #
-        # # 融合特征预测头
-        # c_proj = self.proj2_c(
-        #     F.dropout(
-        #         F.relu(
-        #             self.proj1_c(c_fusion), inplace=True), p=self.output_dropout, training=self.training))
-        # c_proj += c_fusion
+        ## 2d张量
+        # ecg_weights = m_w[:, 0].view(-1, 1)
+        # gsr_weights = m_w[:, 1].view(-1, 1)
+        # v_weights = m_w[:, 2].view(-1, 1)
+        # w_ecg = c_ecg_att * ecg_weights
+        # w_gsr = c_gsr_att * gsr_weights
+        # w_v = c_v_att * v_weights
+        ## 2d预测头
+        # c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, feat)/(batch, 1024)
         # logits_c = self.out_layer_c(c_proj)
 
 
