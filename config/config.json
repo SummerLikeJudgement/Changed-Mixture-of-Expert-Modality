@@ -19,15 +19,15 @@
       "early_stop": 10,
       "attn_mask": true,
       "update_epochs": 10,
-      "fusion_method": "concat",
-      "temperature": 0.2,
+      "fusion_method": "sum",
+      "temperature": 0.1,
       "is_distill": true
     },
     "datasetParams": {
       "biovid": {
         "jmt_nheads" : 8,
         "jmt_hidden_dim" : 256,
-        "jmt_num_layers" : 1,
+        "jmt_num_layers" : 2,
         "jmt_output_format" : "SELF_ATTEN",
         "jmt_dropout" :0.1,
         "attn_dropout_gsr": 0.1,
