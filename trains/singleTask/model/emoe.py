@@ -89,12 +89,11 @@ class EMOE(nn.Module):
         elif self.jmt_output_format == "FC":
             dim = 1024
         # 2d JMT融合特征预测头
-        # self.out_layer_c = nn.Sequential(nn.Linear(dim, 128),
-        #                                 nn.ReLU(inplace=False),
-        #                                 nn.Dropout(self.jmt_dropout),
-        #                                 nn.Linear(128, output_dim)
-        #                                 )
-        self.out_layer_c = nn.Linear(dim, output_dim)
+        self.out_layer_c = nn.Sequential(nn.Linear(dim, 128),
+                                        nn.ReLU(inplace=False),
+                                        nn.Dropout(self.jmt_dropout),
+                                        nn.Linear(128, output_dim)
+                                        )
         # 3d JMT融合特征预测头
         # self.proj1_c = nn.Linear(self.d_ecg, self.d_ecg)
         # self.proj2_c = nn.Linear(self.d_ecg, self.d_ecg)
@@ -239,7 +238,8 @@ class EMOE(nn.Module):
         w_gsr = c_gsr_att * gsr_weights
         w_v = c_v_att * v_weights
         ## 2d预测头
-        c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, feat)/(batch, 1024)
+        c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, feat)/(batch, 1024)\
+        c_proj += c_ecg_att + c_gsr_att + c_v_att
         logits_c = self.out_layer_c(c_proj)
 
 
