@@ -239,7 +239,7 @@ class EMOE(nn.Module):
         w_gsr = c_gsr_att * gsr_weights
         w_v = c_v_att * v_weights
         ## 2d预测头
-        c_proj = self.multitransfomer(w_ecg.unsqueeze(0), w_gsr.unsqueeze(0), w_v.unsqueeze(0))# (batch, feat)/(batch, 1024)
+        c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, feat)/(batch, 1024)
         logits_c = self.out_layer_c(c_proj)
 
 
