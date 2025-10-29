@@ -19,7 +19,7 @@
       "early_stop": 10,
       "attn_mask": true,
       "update_epochs": 10,
-      "fusion_method": "sum",
+      "fusion_method": "concat",
       "temperature": 0.2,
       "is_distill": true
     },
