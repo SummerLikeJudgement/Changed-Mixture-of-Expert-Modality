@@ -160,7 +160,7 @@ class EMOE(nn.Module):
         else:
             m_w = self.Router(ecg, gsr, video)
 
-        # 如果原始维度与目标维度不同，进行投影
+        # 如果原始维度与目标维度不同，进行投影（此时seq维度也发生了变化）
         proj_x_ecg = x_ecg if self.orig_d_ecg == self.d_ecg else self.proj_ecg(x_ecg)
         proj_x_gsr = x_gsr if self.orig_d_gsr == self.d_gsr else self.proj_gsr(x_gsr)
         proj_x_v = x_v if self.orig_d_v == self.d_v else self.proj_v(x_v)
@@ -217,12 +217,9 @@ class EMOE(nn.Module):
         ecg_weights = m_w[:, 0].unsqueeze(1).unsqueeze(2)  # (batch, 1, 1)
         gsr_weights = m_w[:, 1].unsqueeze(1).unsqueeze(2)
         v_weights = m_w[:, 2].unsqueeze(1).unsqueeze(2)
-        ca_ecg_att = self.transfer_ecg_ali(c_ecg_att_seq.permute(1, 2, 0)).permute(0, 2, 1) # batch, feat, seq
-        ca_gsr_att = self.transfer_gsr_ali(c_gsr_att_seq.permute(1, 2, 0)).permute(0, 2, 1)
-        ca_v_att = c_v_att_seq.permute(1, 0, 2)
-        w_ecg = ca_ecg_att * ecg_weights
-        w_gsr = ca_gsr_att * gsr_weights
-        w_v = ca_v_att * v_weights
+        w_ecg = c_ecg_att_seq.permute(1, 0, 2) * ecg_weights
+        w_gsr = c_gsr_att_seq.permute(1, 0, 2) * gsr_weights
+        w_v = c_v_att_seq.permute(1, 0, 2) * v_weights
         ## 3d预测头
         c_att_seq = self.multitransfomer(w_ecg, w_gsr, w_v).permute(1, 0, 2) # (seq, batch, feat)
         c_att = c_att_seq[-1] # (batch, feat)
@@ -241,7 +238,7 @@ class EMOE(nn.Module):
         # w_gsr = c_gsr_att * gsr_weights
         # w_v = c_v_att * v_weights
         ## 2d预测头
-        # c_proj = self.multitransfomer(w_ecg, w_gsr, w_v)# (batch, feat)/(batch, 1024)
+        # c_proj = self.multitransfomer(w_ecg.unsqueeze(0), w_gsr.unsqueeze(0), w_v.unsqueeze(0))# (batch, feat)/(batch, 1024)
         # logits_c = self.out_layer_c(c_proj)
 
 

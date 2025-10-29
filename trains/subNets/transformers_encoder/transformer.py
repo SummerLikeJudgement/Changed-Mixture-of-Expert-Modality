@@ -271,6 +271,20 @@ class MultimodalTransformer_w_JR(nn.Module):
             raise NotImplementedError(self.output_format)
 
     def forward(self, ecg_features, gsr_features, vision_features):
+        # 统一seq长度
+        seq_lens = [f.size(1) for f in [ecg_features, gsr_features, vision_features]]
+        max_seq_len = max(seq_lens)
+
+        def pad_to_max(tensor, max_len):
+            if tensor.size(1) < max_len:
+                return F.pad(tensor, (0, 0, 0, max_len - tensor.size(1)))
+            elif tensor.size(1) > max_len:
+                return tensor[:, :max_len, :]
+            return tensor
+
+        ecg_features = pad_to_max(ecg_features, max_seq_len)
+        gsr_features = pad_to_max(gsr_features, max_seq_len)
+        vision_features = pad_to_max(vision_features, max_seq_len)
         # Permute dimension from (batch, seq, feature) to (seq, batch, feature)
         ecg_features = ecg_features.permute(1, 0, 2)
         gsr_features = gsr_features.permute(1, 0, 2)
