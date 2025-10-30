@@ -30,7 +30,7 @@ class MetricsTop():
         ## p0 vs p4
         p0p4_mask = (y_true == 0) | (y_true == 4)
         # 筛选概率并重新计算预测
-        y_pred_p0p4 = y_pred[p0p4_mask, :]
+        y_pred_p0p4 = y_pred[p0p4_mask]
         y_true_p0p4 = y_true[p0p4_mask]
         y_pred_p0p4_bi = np.array([[v[0], v[4]] for v in y_pred_p0p4])
         y_pred_p0p4_class = np.argmax(y_pred_p0p4_bi, axis=1)
