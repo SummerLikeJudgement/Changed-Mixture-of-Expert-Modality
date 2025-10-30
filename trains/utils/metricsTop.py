@@ -28,19 +28,19 @@ class MetricsTop():
         F1_score_5 = f1_score(y_true, y_pred_class, average='weighted') # 加权F1分数
         # 二分类评估
         ## p0 vs p4
-        y_pred_2 = y_pred_class.reshape(-1,1)
         p0p4_mask = (y_true == 0) | (y_true == 4)
+        # 筛选概率并重新计算预测
+        y_pred_p0p4 = y_pred[p0p4_mask]
         y_true_p0p4 = y_true[p0p4_mask]
-        y_pred_p0p4 = y_pred_2[p0p4_mask]
+        y_pred_p0p4_bi = np.array([[v[0], v[4]] for v in y_pred_p0p4])
+        y_pred_p0p4_class = np.argmax(y_pred_p0p4_bi, axis=1)
+        # 标签映射p0->0,p4->1
+        y_true_p0p4_bi = np.where(y_pred_p0p4 == 4, 1, 0)
 
-        y_pred_bi = np.where(y_pred_p0p4 == 4, 1, 0)
-        y_true_bi = np.where(y_true_p0p4 == 4, 1, 0)
-        ## 有疼痛vs无疼痛
-        # y_pred_bi = np.where(y_pred_5 > 0, 1, 0)
-        # y_true_bi = np.where(y_true > 0, 1, 0)
+        ## todo:有疼痛vs无疼痛
 
-        acc_bi = accuracy_score(y_true_bi, y_pred_bi)
-        F1_bi = f1_score(y_true_bi, y_pred_bi, average='weighted')
+        acc_bi = accuracy_score(y_true_p0p4_bi, y_pred_p0p4_class)
+        F1_bi = f1_score(y_true_p0p4_bi, y_pred_p0p4_class, average='weighted')
 
         eval_results = {
             # 5分类
