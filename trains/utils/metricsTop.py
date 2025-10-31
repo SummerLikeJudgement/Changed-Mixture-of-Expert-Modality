@@ -22,6 +22,8 @@ class MetricsTop():
         # 转化为numpy数组
         y_pred = y_pred.cpu().detach().numpy()# (batch, numclass)
         y_true = y_true.cpu().detach().numpy()# (batch, )
+        print(f"y_pred:{y_pred.shape}")
+        print(f"y_true:{y_true.shape}")
         y_pred_class = np.argmax(y_pred, axis=1)# (batch, )
         # 五分类评估
         Mult_acc_5 = accuracy_score(y_true, y_pred_class) # 5分类准确率
@@ -34,7 +36,7 @@ class MetricsTop():
             acc_bi = 0.0
             F1_bi = 0.0
         else:
-            y_pred_p0p4 = y_pred[p0p4_mask,:]
+            y_pred_p0p4 = y_pred[p0p4_mask]
             y_true_p0p4 = y_true[p0p4_mask]
             y_pred_p0p4_bi = np.array([[v[0], v[4]] for v in y_pred_p0p4])
             y_pred_p0p4_class = np.argmax(y_pred_p0p4_bi, axis=1)
