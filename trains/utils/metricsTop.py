@@ -20,9 +20,9 @@ class MetricsTop():
         }
         """
         # 转化为numpy数组
-        y_pred = y_pred.cpu().detach().numpy()
-        y_true = y_true.cpu().detach().numpy()
-        y_pred_class = np.argmax(y_pred, axis=1)
+        y_pred = y_pred.cpu().detach().numpy()# (batch, numclass)
+        y_true = y_true.cpu().detach().numpy()# (batch, )
+        y_pred_class = np.argmax(y_pred, axis=1)# (batch, )
         # 五分类评估
         Mult_acc_5 = accuracy_score(y_true, y_pred_class) # 5分类准确率
         F1_score_5 = f1_score(y_true, y_pred_class, average='weighted') # 加权F1分数
@@ -30,17 +30,21 @@ class MetricsTop():
         ## p0 vs p4
         p0p4_mask = (y_true == 0) | (y_true == 4)
         # 筛选概率并重新计算预测
-        y_pred_p0p4 = y_pred[p0p4_mask]
-        y_true_p0p4 = y_true[p0p4_mask]
-        y_pred_p0p4_bi = np.array([[v[0], v[4]] for v in y_pred_p0p4])
-        y_pred_p0p4_class = np.argmax(y_pred_p0p4_bi, axis=1)
-        # 标签映射p0->0,p4->1
-        y_true_p0p4_bi = np.where(y_true_p0p4 == 4, 1, 0)
+        if np.sum(p0p4_mask) == 0:
+            acc_bi = 0.0
+            F1_bi = 0.0
+        else:
+            y_pred_p0p4 = y_pred[p0p4_mask]
+            y_true_p0p4 = y_true[p0p4_mask]
+            y_pred_p0p4_bi = np.array([[v[0], v[4]] for v in y_pred_p0p4])
+            y_pred_p0p4_class = np.argmax(y_pred_p0p4_bi, axis=1)
+            # 标签映射p0->0,p4->1
+            y_true_p0p4_bi = np.where(y_true_p0p4 == 4, 1, 0)
 
-        ## todo:有疼痛vs无疼痛
+            ## todo:有疼痛vs无疼痛
 
-        acc_bi = accuracy_score(y_true_p0p4_bi, y_pred_p0p4_class)
-        F1_bi = f1_score(y_true_p0p4_bi, y_pred_p0p4_class, average='weighted')
+            acc_bi = accuracy_score(y_true_p0p4_bi, y_pred_p0p4_class)
+            F1_bi = f1_score(y_true_p0p4_bi, y_pred_p0p4_class, average='weighted')
 
         eval_results = {
             # 5分类
