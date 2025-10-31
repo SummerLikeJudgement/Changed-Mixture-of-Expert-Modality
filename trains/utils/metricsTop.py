@@ -21,9 +21,10 @@ class MetricsTop():
         """
         # 转化为numpy数组
         y_pred = y_pred.cpu().detach().numpy()# (batch, numclass)
-        y_true = y_true.cpu().detach().numpy()# (batch, )
-        print(f"y_pred:{y_pred.shape}")
-        print(f"y_true:{y_true.shape}")
+        y_true = y_true.cpu().detach().numpy()# (batch, 1)
+        y_true = y_true.reshape(-1)
+        # print(f"y_pred:{y_pred.shape}")
+        # print(f"y_true:{y_true.shape}")
         y_pred_class = np.argmax(y_pred, axis=1)# (batch, )
         # 五分类评估
         Mult_acc_5 = accuracy_score(y_true, y_pred_class) # 5分类准确率
