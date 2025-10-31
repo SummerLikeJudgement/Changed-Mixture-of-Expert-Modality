@@ -34,7 +34,7 @@ class MetricsTop():
             acc_bi = 0.0
             F1_bi = 0.0
         else:
-            y_pred_p0p4 = y_pred[p0p4_mask]
+            y_pred_p0p4 = y_pred[p0p4_mask,:]
             y_true_p0p4 = y_true[p0p4_mask]
             y_pred_p0p4_bi = np.array([[v[0], v[4]] for v in y_pred_p0p4])
             y_pred_p0p4_class = np.argmax(y_pred_p0p4_bi, axis=1)
