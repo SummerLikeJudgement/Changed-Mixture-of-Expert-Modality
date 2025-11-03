@@ -432,8 +432,8 @@ class MultimodalTransformer_w_JR(nn.Module):
                                                            final_encoded)
             final_attention = final_attention.permute(1, 0, 2)  # (batch, 6, ecg_dim)
 
-            # 由于只有1个时间步，直接取最后一个特征
-            final_attention_unflatten = final_attention.unflatten(0, (b_size, seq_size))  # (batch, 1, 6, ecg_dim)
+            # 由于只有1个时间步，直接取最后一个特征。onnx不兼容unflatten
+            final_attention_unflatten = final_attention.reshape(b_size, seq_size, 6, -1)  # (batch, 1, 6, ecg_dim)
 
             # 取最后一个交叉注意力输出的特征 (batch, 1, ecg_dim)
             final_attention_unflatten = final_attention_unflatten[:, :, -1, :]
